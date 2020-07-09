@@ -51,6 +51,9 @@ Many thanks to all the guys giving me grad inspirations with their projects
 
 Most of it is plugged together straight forward. A detailed list is included in the foamcutter.ino file.
 
+TODO: Add Picture here 
+
+
 Modifications of Hardware:
 - cut-off Arduino PIN 10 on Ramps 
 - connect Arduino Pin 7 on Ramps to Socket off PIN 10
@@ -59,5 +62,39 @@ Modifications of Hardware:
 
 
 How to start:
-the Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE please use the Serial Monitor with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you will get an hard error, which blocks all communication to the Arduino.
+the Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE please use the Serial Monitor (Baudrate 11520) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you will get an hard error, which blocks all communication to the Arduino.
+
+# Firmware
+The Firmware is based on the grbl version 8c2 modified for foam cutter, a modified version of U8G2 library for the display and SdFat with no changes.
+
+Links to the original 
+[grbl 8c2 foam](https://www.rcgroups.com/forums/showthread.php?2915801-4-Axis-Hot-Wire-CNC-%28Arduino-Ramps1-4%29-Complete-Solution)
+[U8G2 Lib by Oli Kraus, tested with version 2.27.6](https://github.com/olikraus/u8g2)
+[SdFat by Bill Greiman, tested with version 1.2.3](https://github.com/greiman/SdFat)
+Many thanks to you, for writing and sharing this fantastic code.
+
+How to install:
+- Download the foamcutter firmware
+- Download the U8G2 lib (GitHub or via the Arduino IDE) 
+- Download the SdFat lib (GitHub or via the Arduino IDE)
+- Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h abd U8x8Lib.cpp
+
+Changes within the library U8G2:
+Grbl uses almost all resources of the Arduino to control the stepper within an accurate timing. So the standard approach of Arduino is not working any more, because some resources are not available anymore for the Arduino framework. Within the U8G2 I use a software driven SPI on pin D50 to D52 (I didn’t check, if hardware driven SPI would work, too). the only thing I need to change, was the required delay within the SPI. Therefore I changes the delay function to the grbl supported delay.
+
+
+LCD, SD card and buttons, ….
+The LCD display and the buttons are controlled inside the lcd.h and lcd.cpp. buttons are read within the lcd_process(), from where all processing functions of the sub menus are called.
+Functions within the sub menus, which are related to cnc functionality are called as if they would have been called via UART/USB. So you will get a ok over the UART/USB for a local called cnc command, too. The firmware can sill be controlled with gcode sender tools via the UART/USB.
+SD card is processed inside lcd.cpp and lcd_process(), too. processing of the SD card is handled with a state machine, which reads the selected file char by char, similar as reading the UART. 
+During processing a file from SD card, buttons are ignored, operation can only be stopped with an IRQ of the limit switches or the e-stop.
+Fan can only be controlled locally on the display. Hotwire can be controlled via the display and with the gcode commands M3/4 for on and M5 for off and Sxxx (0…100) for regulating the power in %.
+
+Please have a lock at the parameters (command $$ over Serial Monitor)
+
+ToDo: Bild Parameter
+ToDo Link to video firmare
+
+
+
 
