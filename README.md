@@ -83,7 +83,7 @@ Grbl uses almost all resources of the Arduino to control the stepper within an a
 
 ### LCD, SD card and buttons, ….
 The LCD display and the buttons are controlled inside the lcd.h and lcd.cpp. buttons are read within the lcd_process(), from where all processing functions of the sub menus are called.
-Functions within the sub menus, which are related to cnc functionality are called as if they would have been called via UART/USB. So you will get a ok over the UART/USB for a local called cnc command, too. The firmware can sill be controlled with gcode sender tools via the UART/USB.
+Functions within the sub menus, which are related to cnc functionality are called as if they would have been called via UART/USB. So you will get an ok over the UART/USB for a local called cnc command, too. The firmware can still be controlled with gcode sender tools via the UART/USB.
 SD card is processed inside lcd.cpp and lcd_process(), too. processing of the SD card is handled with a state machine, which reads the selected file char by char, similar as reading the UART. 
 During processing a file from SD card, buttons are ignored, operation can only be stopped with an IRQ of the limit switches or the e-stop.
 Fan can only be controlled locally on the display. Hotwire can be controlled via the display and with the gcode commands M3/4 for on and M5 for off and Sxxx (0…100) for regulating the power in %.
@@ -126,6 +126,7 @@ ToDo Link to video firmare
   - executes a cut by preheating the hotwire for 5 seconds
 - Fan
   - switch on/off or change the power in %  new value is stored in the eeprom
+- The firmware can still be controlled with gcode sender tools via the UART/USB 
 
 ### How to start:
 Please refer to grbl documentation for parameter settings and first steps. A good point to start is to 
