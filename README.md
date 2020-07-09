@@ -153,8 +153,8 @@ Open the ruby code editor first and load and execute the foamcutter.rb. This add
 With the tool itself, you are asked to select 2 paths which are exported as gcode. The paths it self use the green (x and u) and blue (y and z) axis. positioning along the red axis does not matter.
 
 The algorithm searches all related points to an edge. It follows two routes
-# 1: go up first (Y/Z +)
-# 2: go back first (X/U -)
+### 1: go up first (Y/Z +)
+### 2: go back first (X/U -)
 It uses all edges only once. If you reach a dead end, you may use the third dimension do open up new paths/edges - please keep the rules in mind.
 
 Both paths should have the same number of points and edges. To go for that with more complex objects, it is a good way to use CurviLoft
