@@ -95,4 +95,43 @@ ToDo Link to video firmare
 
 
 
+### Functions on local display / buttons
+- e-stop: IRQ based local stop, this does not match the requirements of any safety standard
+- Idle stepper
+- Homing
+  - homing including pull-off
+  - set current position as new pull off position: this function is used to travel from limit switches to machine zero position. adjust the position with the position menu
+- Position
+  - adjust each axis independent
+  - set or travel to a temporary home position
+  - set or travel to a temporary zero position
+  - 8 buttons to control the movements
+- SD-Card
+  - read file list from SD-Card (only with defined file extensions (config.h), only from root directory, keep filenames short)
+  - execute a file from the SD-Card
+  - visualise the progress (bytes read and send to gcode processing, not bytes really executed)
+- Hotwire
+  - switch on/off or change the power in %  new value is stored in the eeprom
+  - switch on/off with button
+  - indicate status with LED
+- Feed speed 
+  - select the feed speed
+  - new value is stored in the eeprom
+  - if gcode includes feed rates, gcode values are used.
+  - adjust in big steps withY- / Y+ buttons
+- Cutting
+  - this functions allows horizontal or vertical cutting w/o gcode
+  - select the cutting direction with the 8 buttons for the axis
+  - define the maximum x/y travel for cutting (use position menue)
+  - executes a cut by preheating the hotwire for 5 seconds
+- Fan
+  - switch on/off or change the power in %  new value is stored in the eeprom
+
+### How to start:
+Please refer to grbl documentation for parameter settings and first steps. A good point to start is to 
+- disable limit switches and homing cycle
+- set the steps per mm for each axis
+- check the direction and adjust with "step port invert mask"
+- check travel distances and optimize
+- activate homing cycle and check directions and adjust with "homing dir invert mask"
 
