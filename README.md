@@ -136,3 +136,42 @@ Please refer to grbl documentation for parameter settings and first steps. A goo
 - check travel distances and optimize
 - activate homing cycle and check directions and adjust with "homing dir invert mask"
 
+
+# Working with SketchUp
+
+I use SketchUp for generating the stl-files for my 3D printed parts. I would love to use the easy handling for creating fuselages. I searched the web and found only one tool, which is not supported any more. so I decided to write a small tool or better plug in by myself.
+
+What you need
+SketchUp (I am Using SketchUp Make 2017)
+Ruby Code Editor
+CurviLoft
+Download foamcutter.rb
+
+Functionality of foamcutter.rb
+Open the ruby code editor first and load and execute the foamcutter.rb. This adds 3 menus to the PlugIn menu. Inside the settings you can define some general settings, like inch/mm, used decimals, labels of the axis.
+
+With the tool itself, you are asked to select 2 paths which are exported as gcode. The paths it self use the green (x and u) and blue (y and z) axis. positioning along the red axis does not matter.
+
+The algorithm searches all related points to an edge. It follows two routes
+# 1: go up first (Y/Z +)
+# 2: go back first (X/U -)
+It uses all edges only once. If you reach a dead end, you may use the third dimension do open up new paths/edges - please keep the rules in mind.
+
+Both paths should have the same number of points and edges. To go for that with more complex objects, it is a good way to use CurviLoft
+create your objects
+use CurviLoft to generate the surface/area between the objects. 
+select to show the related edges between the objects (connection lines)
+split these connection lines (ungroup)
+select and group the objects (otherwise the object is not splittet in points)
+delete the connection lines
+use foamcutter tool
+select first and second edge
+save the file
+do the post processing is required
+
+TODO Image
+
+# Post processing
+
+ToDo
+ 
