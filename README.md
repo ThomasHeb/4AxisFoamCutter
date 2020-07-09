@@ -21,12 +21,9 @@ For controlling the four axis I found a solutions based on grbl 8c2 in combinati
 
 # Resources
 Many thanks to all the guys giving me grad inspirations with their projects
-
-[rcKeith, Hot wire cutter](www.rckeith.co.uk/cnc-hot-wire-foam-cutter/)
-
-[4 axis foam cutter](https://github.com/rahulsarchive/4AxisFoamCutter)
-
-[4 axis foam hotwire cutter](https://www.rcgroups.com/forums/showthread.php?2915801-4-Axis-Hot-Wire-CNC-(Arduino-Ramps1-4)-Complete-Solution)
+- [rcKeith, Hot wire cutter](www.rckeith.co.uk/cnc-hot-wire-foam-cutter/)
+- [4 axis foam cutter](https://github.com/rahulsarchive/4AxisFoamCutter)
+- [4 axis foam hotwire cutter](https://www.rcgroups.com/forums/showthread.php?2915801-4-Axis-Hot-Wire-CNC-(Arduino-Ramps1-4)-Complete-Solution)
 
 
 # Mechanics
@@ -68,9 +65,10 @@ the Arduino and the Ramps board are working without the stepper driver or motors
 The Firmware is based on the grbl version 8c2 modified for foam cutter, a modified version of U8G2 library for the display and SdFat with no changes.
 
 Links to the original 
-[grbl 8c2 foam](https://www.rcgroups.com/forums/showthread.php?2915801-4-Axis-Hot-Wire-CNC-%28Arduino-Ramps1-4%29-Complete-Solution)
-[U8G2 Lib by Oli Kraus, tested with version 2.27.6](https://github.com/olikraus/u8g2)
-[SdFat by Bill Greiman, tested with version 1.2.3](https://github.com/greiman/SdFat)
+- [grbl 8c2 foam](https://www.rcgroups.com/forums/showthread.php?2915801-4-Axis-Hot-Wire-CNC-%28Arduino-Ramps1-4%29-Complete-Solution)
+- [U8G2 Lib by Oli Kraus, tested with version 2.27.6](https://github.com/olikraus/u8g2)
+- [SdFat by Bill Greiman, tested with version 1.2.3](https://github.com/greiman/SdFat)
+
 Many thanks to you, for writing and sharing this fantastic code.
 
 How to install:
