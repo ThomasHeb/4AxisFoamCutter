@@ -141,13 +141,13 @@ Please refer to grbl documentation for parameter settings and first steps. A goo
 
 I use SketchUp for generating the stl-files for my 3D printed parts. I would love to use the easy handling for creating fuselages. I searched the web and found only one tool, which is not supported any more. so I decided to write a small tool or better plug in by myself.
 
-What you need
-SketchUp (I am Using SketchUp Make 2017)
-Ruby Code Editor
-CurviLoft
-Download foamcutter.rb
+### What you need
+- SketchUp (I am Using SketchUp Make 2017)
+- Ruby Code Editor
+- CurviLoft
+- Download foamcutter.rb
 
-Functionality of foamcutter.rb
+### Functionality of foamcutter.rb
 Open the ruby code editor first and load and execute the foamcutter.rb. This adds 3 menus to the PlugIn menu. Inside the settings you can define some general settings, like inch/mm, used decimals, labels of the axis.
 
 With the tool itself, you are asked to select 2 paths which are exported as gcode. The paths it self use the green (x and u) and blue (y and z) axis. positioning along the red axis does not matter.
@@ -170,6 +170,8 @@ save the file
 do the post processing is required
 
 TODO Image
+
+In addition you can import how files from WingHelper
 
 # Post processing
 
