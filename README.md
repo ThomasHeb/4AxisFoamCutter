@@ -158,16 +158,16 @@ The algorithm searches all related points to an edge. It follows two routes
 It uses all edges only once. If you reach a dead end, you may use the third dimension do open up new paths/edges - please keep the rules in mind.
 
 Both paths should have the same number of points and edges. To go for that with more complex objects, it is a good way to use CurviLoft
-create your objects
-use CurviLoft to generate the surface/area between the objects. 
-select to show the related edges between the objects (connection lines)
-split these connection lines (ungroup)
-select and group the objects (otherwise the object is not splittet in points)
-delete the connection lines
-use foamcutter tool
-select first and second edge
-save the file
-do the post processing is required
+- create your objects
+- use CurviLoft to generate the surface/area between the objects. 
+- select to show the related edges between the objects (connection lines)
+- split these connection lines (ungroup)
+- select and group the objects (otherwise the object is not splittet in points)
+- delete the connection lines
+- use foamcutter tool
+- select first and second edge
+- save the file
+- do the post processing if required
 
 TODO Image
 
