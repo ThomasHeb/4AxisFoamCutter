@@ -51,14 +51,14 @@ Most of it is plugged together straight forward. A detailed list is included in 
 TODO: Add Picture here 
 
 
-Modifications of Hardware:
+### Modifications of Hardware:
 - cut-off Arduino PIN 10 on Ramps 
 - connect Arduino Pin 7 on Ramps to Socket off PIN 10
 - to reduce EMC connect 100 nF between S and - close to Ramps for limit switches / end stops
 - to reduce EMC connect 100 nF between D63 and GND directly on Ramps pin header for AUX-2 (not required if stopp button is close to ramps) 
 
 
-How to start:
+### How to start:
 the Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE please use the Serial Monitor (Baudrate 11520) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you will get an hard error, which blocks all communication to the Arduino.
 
 # Firmware
@@ -71,17 +71,17 @@ Links to the original
 
 Many thanks to you, for writing and sharing this fantastic code.
 
-How to install:
+### How to install:
 - Download the foamcutter firmware
 - Download the U8G2 lib (GitHub or via the Arduino IDE) 
 - Download the SdFat lib (GitHub or via the Arduino IDE)
 - Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h abd U8x8Lib.cpp
 
-Changes within the library U8G2:
+### Changes within the library U8G2:
 Grbl uses almost all resources of the Arduino to control the stepper within an accurate timing. So the standard approach of Arduino is not working any more, because some resources are not available anymore for the Arduino framework. Within the U8G2 I use a software driven SPI on pin D50 to D52 (I didn’t check, if hardware driven SPI would work, too). the only thing I need to change, was the required delay within the SPI. Therefore I changes the delay function to the grbl supported delay.
 
 
-LCD, SD card and buttons, ….
+### LCD, SD card and buttons, ….
 The LCD display and the buttons are controlled inside the lcd.h and lcd.cpp. buttons are read within the lcd_process(), from where all processing functions of the sub menus are called.
 Functions within the sub menus, which are related to cnc functionality are called as if they would have been called via UART/USB. So you will get a ok over the UART/USB for a local called cnc command, too. The firmware can sill be controlled with gcode sender tools via the UART/USB.
 SD card is processed inside lcd.cpp and lcd_process(), too. processing of the SD card is handled with a state machine, which reads the selected file char by char, similar as reading the UART. 
