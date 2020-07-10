@@ -32,6 +32,11 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - nichrome wire
 - 2-4x Retractable Reel 
 
+![mechanic_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_1.JPG)
+![mechanic_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_2.JPG)
+![mechanic_3](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_3.JPG)
+![mechanic_4](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_4.JPG)
+
 # Hardware
 - Arduino Mega 2560
 - 128x64 LCD Display / SD card reader from RepRap with connector to Ramps 1.4
