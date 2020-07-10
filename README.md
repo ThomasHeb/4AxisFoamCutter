@@ -186,6 +186,9 @@ Both paths should have the same number of points and edges. To go for that with 
 - save the file
 - do the post processing if required
 
+### Check out the tutorial video
+ToDo Link to video firmare
+
 ![sketchup_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/sketchup_1.png)
 ![sketchup_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/sketchup_2.png)
 
