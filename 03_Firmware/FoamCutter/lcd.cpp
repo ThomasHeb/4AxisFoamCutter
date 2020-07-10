@@ -442,7 +442,7 @@ void lcd_process_menue_main() {
     }
 
     if (lcd_data.buttons_redge & BTN_ROTARY_RIGHT) {
-      if (lcd_data.cursor_id < 3) {     // if curser goes down before 3rd entry
+      if (lcd_data.cursor_id < 1) {     // if curser goes down before 3rd entry // TODO change for adding menues
         lcd_data.cursor_id      += 1;   // ... select next entry
         lcd_data.refresh        =  1;   // ... reload
       }
