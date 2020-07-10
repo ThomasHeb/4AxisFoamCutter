@@ -118,7 +118,7 @@ ToDo Link to video firmare
   - select the feed speed
   - new value is stored in the eeprom
   - if gcode includes feed rates, gcode values are used.
-  - adjust in big steps withY- / Y+ buttons
+  - adjust in big steps with Y- / Y+ buttons
 - Cutting
   - this functions allows horizontal or vertical cutting w/o gcode
   - select the cutting direction with the 8 buttons for the axis
@@ -135,7 +135,7 @@ Please refer to grbl documentation for parameter settings and first steps. A goo
 - check the direction and adjust with "step port invert mask"
 - check travel distances and optimize
 - activate homing cycle and check directions and adjust with "homing dir invert mask"
-- a good setting to start is feedrate 300 mm/min, hotwire 80% for 75 cm hotwire
+- a good setting to start is feedrate 300 mm/min, hotwire 80% on 30V DC for 75 cm hotwire
 
 # Working with SketchUp
 
