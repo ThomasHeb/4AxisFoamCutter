@@ -59,7 +59,7 @@ TODO: Add Picture here
 
 
 ### How to start:
-the Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE please use the Serial Monitor (Baudrate 11520) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you will get an hard error, which blocks all communication to the Arduino.
+the Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE please use the Serial Monitor (Baudrate 115200) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you will get a hard error, which blocks all communication to the Arduino.
 
 # Firmware
 The Firmware is based on the grbl version 8c2 modified for foam cutter, a modified version of U8G2 library for the display and SdFat with no changes.
@@ -135,7 +135,7 @@ Please refer to grbl documentation for parameter settings and first steps. A goo
 - check the direction and adjust with "step port invert mask"
 - check travel distances and optimize
 - activate homing cycle and check directions and adjust with "homing dir invert mask"
-
+- a good setting to start is feedrate 300 mm/min, hotwire 80% for 75 cm hotwire
 
 # Working with SketchUp
 
