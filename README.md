@@ -100,7 +100,7 @@ Fan can only be controlled locally on the display. Hotwire can be controlled via
 
 Please have a lock at the parameters (command $$ over Serial Monitor)
 
-[grbl settings](https://github.com/ThomasHeb/4AxisFoamCutter/grbl_settings.png)
+[grbl settings](https://github.com/ThomasHeb/4AxisFoamCutter/img/grbl_settings.png)
 
 
 ToDo Link to video firmare
