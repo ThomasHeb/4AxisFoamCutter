@@ -75,7 +75,7 @@ Many thanks to you, for writing and sharing this fantastic code.
 - Download the foamcutter firmware
 - Download the U8G2 lib (GitHub or via the Arduino IDE) 
 - Download the SdFat lib (GitHub or via the Arduino IDE)
-- Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h abd U8x8Lib.cpp
+- Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h and U8x8Lib.cpp
 
 ### Changes within the library U8G2:
 Grbl uses almost all resources of the Arduino to control the stepper within an accurate timing. So the standard approach of Arduino is not working any more, because some resources are not available anymore for the Arduino framework. Within the U8G2 I use a software driven SPI on pin D50 to D52 (I didn’t check, if hardware driven SPI would work, too). the only thing I need to change, was the required delay within the SPI. Therefore I changes the delay function to the grbl supported delay.
