@@ -59,7 +59,17 @@ TODO: Add Picture here
 
 
 ### How to start:
-the Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE please use the Serial Monitor (Baudrate 115200) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you will get a hard error, which blocks all communication to the Arduino.
+the Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE please use the Serial Monitor (Baudrate 115200) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you will get a hard error, which blocks all communication to the Arduino. After that you should 
+- connect the display to the Ramps
+- connect the Arduino with the USB
+- load the firmware and check if you get a welcome screen
+- add the buttons and LEDs to the Ramps
+- calculate the steps per mm and set the microstepps according with the jumpers (I use belt and pully with 80 steps / mm) 
+- add the stepper driver to the Ramps
+- adjust the driver [link](https://www.makerguides.com/a4988-stepper-motor-driver-arduino-tutorial/)
+- connect 12V DC to Ramps 3/4
+- add a stepper motor and test operation
+
 
 # Firmware
 The Firmware is based on the grbl version 8c2 modified for foam cutter, a modified version of U8G2 library for the display and SdFat with no changes.
@@ -130,12 +140,13 @@ ToDo Link to video firmare
 
 ### How to start:
 Please refer to grbl documentation for parameter settings and first steps. A good point to start is to 
-- disable limit switches and homing cycle
+- disable limit switches and homing cycle 
 - set the steps per mm for each axis
 - check the direction and adjust with "step port invert mask"
 - check travel distances and optimize
 - activate homing cycle and check directions and adjust with "homing dir invert mask"
 - a good setting to start is feedrate 300 mm/min, hotwire 80% on 30V DC for 75 cm hotwire
+
 
 # Working with SketchUp
 
