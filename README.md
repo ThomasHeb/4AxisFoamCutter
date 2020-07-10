@@ -32,8 +32,6 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - nichrome wire
 - 2-4x Retractable Reel 
 
-![mechanic_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_1.JPG)
-![mechanic_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_2.JPG)
 ![mechanic_3](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_3.JPG)
 ![mechanic_4](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_4.JPG)
 
@@ -53,12 +51,13 @@ Many thanks to all the guys giving me grad inspirations with their projects
 
 Most of it is plugged together straight forward. A detailed list is included in the foamcutter.ino file.
 
-TODO: Add Picture here 
+![hardware_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/hardware_1.JPG)
+![hardware_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/hardware_2.JPG)
 
 
 ### Modifications of Hardware:
-- cut-off Arduino PIN 10 on Ramps 
-- connect Arduino Pin 7 on Ramps to Socket off PIN 10
+- cut-off Arduino PIN 10 on Ramps (just cut of the pin-header on the Ramps 
+- connect Arduino Pin 7 on Ramps to Socket off pin 10
 - to reduce EMC connect 100 nF between S and - close to Ramps for limit switches / end stops
 - to reduce EMC connect 100 nF between D63 and GND directly on Ramps pin header for AUX-2 (not required if stopp button is close to ramps) 
 
