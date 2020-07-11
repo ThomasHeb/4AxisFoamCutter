@@ -6,16 +6,16 @@ Swift base post processing
 
 My goal was to build a foam based semi scale glider. So a lot of segments and very accurate working would have been necessary. This brought me to the idea to design the glider in SketchUp and build a 4 axis foam cutter.
 
-the base idea ist very simple. four independent linear axis with NEMA 17 stepper and belts. this simple system is satisfying because the accuracy of the belt and stepper is better than the impact of the hot wire, its temperature and feed speed ans almost no force is required to cut the foam. The only mechanical topic is to keep the hot wire stretched. Therefore I found a very good Idea here on GitHub.
+The base idea ist very simple. Four independent linear axis with NEMA 17 stepper and belts. This simple system is satisfying,  because the accuracy of the belt and stepper is better than the impact of the hot wire, it's temperature and feed speed and almost no force is required to cut the foam. The only mechanical topic is to keep the hot wire stretched. Therefore I found a very good idea here on GitHub with retractable reels.
 
-For controlling the four axis I found a solutions based on grbl 8c2 in combination with some Windows bases UIs and gcode sender. For generating the wing profiles I found some windows solutions or professional tools, but not free of charge. For the fuselage I found only ra professional tool. As I am a mac-user w/o a computer in the workshop (I don’t want it), I came to my project list.
+For controlling the four axis I found a solutions based on grbl 8c2 in combination with some Windows bases UIs and gcode sender. For generating the wing profiles I found some windows solutions or professional tools, but not free of charge, neither running on mac. For the fuselage I found only a professional tool. As I don't want a computer in my workshop, the gcode should be executed from a SD card, similar as my 3D printer does.  So I came to my project list:
 - 4 independent axis 
 - local display, SD card reader and control buttons
 - Arduino bases gcode handling, based on grbl 8c2 version adapted for foam cutting.
 - fixed frame based on 2020 profiles, v-slot based linear actors (it is my first cnc machine, so there are much easier and better mechanical constructions, have a lock on https://www.rckeith.co.uk)
 - only one power supply
 - wing design with WingHelper (I have a licence), export of gcode is possible but post process is required
-- fuselage design with SketchUp, therefore I wrote a small tool
+- fuselage design with SketchUp, therefore I wrote a small tool to generate gcode
 - post processing to adapt gcode to machine geometry
 
 
@@ -30,7 +30,7 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - 4x linear v-slot actuator with NEMA 17
 - 2020 profiles, screws, nuts
 - nichrome wire
-- 2-4x Retractable Reel 
+- 2-4x retractable reel 
 
 ![mechanic_3](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_3.JPG)
 ![mechanic_4](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_4.JPG)
@@ -63,7 +63,7 @@ Most of it is plugged together straight forward. A detailed list is included in 
 
 
 ### How to start:
-the Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE please use the Serial Monitor (Baudrate 115200) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you will get a hard error, which blocks all communication to the Arduino. After that you should 
+The Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE, please use the Serial Monitor (Baudrate 115200) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle in the parameter. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you may get a hard error, which blocks all communication to the Arduino. After that you should 
 - connect the display to the Ramps
 - connect the Arduino with the USB
 - load the firmware and check if you get a welcome screen
@@ -76,7 +76,7 @@ the Arduino and the Ramps board are working without the stepper driver or motors
 
 
 # Firmware
-The Firmware is based on the grbl version 8c2 modified for foam cutter, a modified version of U8G2 library for the display and SdFat with no changes.
+The firmware is based on the grbl version 8c2 modified for foam cutter, a modified version of U8G2 library for the display and SdFat with no changes.
 
 Links to the original 
 - [grbl 8c2 foam](https://www.rcgroups.com/forums/showthread.php?2915801-4-Axis-Hot-Wire-CNC-%28Arduino-Ramps1-4%29-Complete-Solution)
@@ -89,16 +89,16 @@ Many thanks to you, for writing and sharing this fantastic code.
 - Download the foamcutter firmware
 - Download the U8G2 lib (GitHub or via the Arduino IDE) 
 - Download the SdFat lib (GitHub or via the Arduino IDE)
-- Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h and U8x8Lib.cpp
+- Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h and U8x8Lib.cpp from the code section
 
 ### Changes within the library U8G2:
-Grbl uses almost all resources of the Arduino to control the stepper within an accurate timing. So the standard approach of Arduino is not working any more, because some resources are not available anymore for the Arduino framework. Within the U8G2 I use a software driven SPI on pin D50 to D52 (I didn’t check, if hardware driven SPI would work, too). the only thing I need to change, was the required delay within the SPI. Therefore I changes the delay function to the grbl supported delay.
+Grbl uses almost all resources of the Arduino to control the stepper within an accurate timing. So the standard approach of Arduino is not working any more, because some resources are not available anymore for the Arduino framework. Within the U8G2 I use a software driven SPI on pin D50 to D52 (I didn’t check, if hardware driven SPI would work, too). The only thing I needed to change, was the required delay within the SPI. Therefore I changed the delay function to the grbl supported delay function.
 
 
 ### LCD, SD card and buttons, ….
-The LCD display and the buttons are controlled inside the lcd.h and lcd.cpp. buttons are read within the lcd_process(), from where all processing functions of the sub menus are called.
+The LCD display and the buttons are controlled inside the lcd.h and lcd.cpp. Buttons are read within the lcd_process(), from where all processing functions of the sub menus are called.
 Functions within the sub menus, which are related to cnc functionality are called as if they would have been called via UART/USB. So you will get an ok over the UART/USB for a local called cnc command, too. The firmware can still be controlled with gcode sender tools via the UART/USB.
-SD card is processed inside lcd.cpp and lcd_process(), too. processing of the SD card is handled with a state machine, which reads the selected file char by char, similar as reading the UART. 
+SD card is processed inside lcd.cpp and lcd_process(), too. Processing of the SD card is handled with a state machine, which reads the selected file char by char, similar as reading the UART. 
 During processing a file from SD card, buttons are ignored, operation can only be stopped with an IRQ of the limit switches or the e-stop.
 Fan can only be controlled locally on the display. Hotwire can be controlled via the display and with the gcode commands M3/4 for on and M5 for off and Sxxx (0…100) for regulating the power in %.
 
@@ -116,7 +116,7 @@ ToDo Link to video firmare
 - Idle stepper
 - Homing
   - homing including pull-off
-  - set current position as new pull off position: this function is used to travel from limit switches to machine zero position. adjust the position with the position menu
+  - set current position as new pull off position: This function is used to travel from limit switches to machine zero position. Adjust the position with the position menu
 - Position
   - adjust each axis independent
   - set or travel to a temporary home position
@@ -127,7 +127,7 @@ ToDo Link to video firmare
   - execute a file from the SD-Card
   - visualise the progress (bytes read and send to gcode processing, not bytes really executed)
 - Hotwire
-  - switch on/off or change the power in %  new value is stored in the eeprom
+  - switch on/off or change the power in %. New value is stored in the eeprom
   - switch on/off with button
   - indicate status with LED
 - Feed speed 
@@ -141,11 +141,11 @@ ToDo Link to video firmare
   - define the maximum x/y travel for cutting (use position menue)
   - executes a cut by preheating the hotwire for 5 seconds
 - Fan
-  - switch on/off or change the power in %  new value is stored in the eeprom
+  - switch on/off or change the power in %. New value is stored in the eeprom
 - The firmware can still be controlled with gcode sender tools via the UART/USB 
 
 ### How to start:
-Please refer to grbl documentation for parameter settings and first steps. A good point to start is to 
+Please refer to grbl documentation for parameter settings and first steps. A good point to start is to:
 - disable limit switches and homing cycle 
 - set the steps per mm for each axis
 - check the direction and adjust with "step port invert mask"
@@ -156,18 +156,18 @@ Please refer to grbl documentation for parameter settings and first steps. A goo
 
 # Working with SketchUp
 
-I use SketchUp for generating the stl-files for my 3D printed parts. I would love to use the easy handling for creating fuselages. I searched the web and found only one tool, which is not supported any more. so I decided to write a small tool or better plug in by myself.
+I use SketchUp for generating the stl-files for my 3D printed parts. I would love to use the easy handling for creating fuselages. I searched the web and found only one hotwire related tool, which is not supported any more. so I decided to write a small tool by myself. This allowas you to generare G90 (abolute positioning) coordinates of combinded edges. Currently I use only linear extrapolation in combination with my post processor. The results are good.
 
 ### What you need
 - SketchUp (I am Using SketchUp Make 2017)
 - Ruby Code Editor
 - CurviLoft
-- Download foamcutter.rb
+- Download foamcutter.rb from the code section
 
-### Functionality of foamcutter.rb
+### Functionality and usage of foamcutter.rb
 Open the ruby code editor first and load and execute the foamcutter.rb. This adds 3 menus to the PlugIn menu. Inside the settings you can define some general settings, like inch/mm, used decimals, labels of the axis.
 
-With the tool itself, you are asked to select 2 paths which are exported as gcode. The paths it self use the green (x and u) and blue (y and z) axis. positioning along the red axis does not matter.
+With the tool itself, you are asked to select 2 paths which are exported as gcode. The paths it self use the green (x and u) and blue (y and z) axis. Positioning along the red axis does not matter.
 
 The algorithm searches all related points to an edge. It follows two routes
 ### 1: go up first (Y/Z +)
