@@ -33,7 +33,7 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
 - [Working with SketchUp Part 2](https://youtu.be/SIh3zpsxGX4)
 - [Working with SketchUp Part 3](https://youtu.be/uU0HhuviuLE)
-- [Feed seed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
+- [Feed speed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
 
 
 # Mechanics
