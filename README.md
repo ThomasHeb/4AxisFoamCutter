@@ -31,7 +31,8 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [Firmware](https://youtu.be/fht_X7mQ-qg)
 - [Functions](https://youtu.be/SWv79BavgKs)
 - [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
-- [Working with SketchUp Part 2](https://youtu.be/wnmAu0lhFRg)
+- [Working with SketchUp Part 2](https://youtu.be/SIh3zpsxGX4)
+- [Working with SketchUp Part 3](https://youtu.be/uU0HhuviuLE)
 - [Feed seed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
 
 
@@ -201,7 +202,8 @@ Both paths should have the same number of points and edges. To go for that with 
 
 ### Check out the tutorial video
 - [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
-- [Working with SketchUp Part 2](https://youtu.be/wnmAu0lhFRg)
+- [Working with SketchUp Part 2](https://youtu.be/SIh3zpsxGX4)
+- [Working with SketchUp Part 3](https://youtu.be/uU0HhuviuLE)
 
 ![sketchup_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/sketchup_1.png)
 ![sketchup_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/sketchup_2.png)
