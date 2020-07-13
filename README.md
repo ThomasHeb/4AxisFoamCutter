@@ -35,6 +35,8 @@ Many thanks to all the guys giving me grad inspirations with their projects
 ![mechanic_3](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_3.JPG)
 ![mechanic_4](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_4.JPG)
 
+![Video mechanic](https://youtu.be/zKdzEoycaa4)
+
 # Hardware
 - Arduino Mega 2560
 - 128x64 LCD Display / SD card reader from RepRap with connector to Ramps 1.4
@@ -74,6 +76,7 @@ The Arduino and the Ramps board are working without the stepper driver or motors
 - connect 12V DC to Ramps 3/4
 - add a stepper motor and test operation
 
+![Video Hardware](https://youtu.be/xaXfXsz1NG8)
 
 # Firmware
 The firmware is based on the grbl version 8c2 modified for foam cutter, a modified version of U8G2 library for the display and SdFat with no changes.
