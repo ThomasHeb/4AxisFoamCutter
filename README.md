@@ -25,6 +25,15 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [4 axis foam cutter](https://github.com/rahulsarchive/4AxisFoamCutter)
 - [4 axis foam hotwire cutter](https://www.rcgroups.com/forums/showthread.php?2915801-4-Axis-Hot-Wire-CNC-(Arduino-Ramps1-4)-Complete-Solution)
 
+# Videos
+- [Mechanic](https://youtu.be/zKdzEoycaa4)
+- [Hardware](https://youtu.be/xaXfXsz1NG8)
+- [Firmware](https://youtu.be/fht_X7mQ-qg)
+- [Functions](https://youtu.be/SWv79BavgKs)
+- [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
+- [Working with SketchUp Part 2](https://youtu.be/wnmAu0lhFRg)
+- [Feed seed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
+
 
 # Mechanics
 - 4x linear v-slot actuator with NEMA 17
@@ -35,7 +44,7 @@ Many thanks to all the guys giving me grad inspirations with their projects
 ![mechanic_3](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_3.JPG)
 ![mechanic_4](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/mechanic_4.JPG)
 
-![Video mechanic](https://youtu.be/zKdzEoycaa4)
+[Video: Mechanic](https://youtu.be/zKdzEoycaa4)
 
 # Hardware
 - Arduino Mega 2560
@@ -76,7 +85,7 @@ The Arduino and the Ramps board are working without the stepper driver or motors
 - connect 12V DC to Ramps 3/4
 - add a stepper motor and test operation
 
-![Video Hardware](https://youtu.be/xaXfXsz1NG8)
+[Video: Hardware](https://youtu.be/xaXfXsz1NG8)
 
 # Firmware
 The firmware is based on the grbl version 8c2 modified for foam cutter, a modified version of U8G2 library for the display and SdFat with no changes.
@@ -109,8 +118,7 @@ Please have a lock at the parameters (command $$ over Serial Monitor)
 
 ![grbl settings](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/grbl_settings.png)
 
-
-ToDo Link to video firmare
+[Video Firmware](https://youtu.be/fht_X7mQ-qg)
 
 
 
@@ -146,6 +154,8 @@ ToDo Link to video firmare
 - Fan
   - switch on/off or change the power in %. New value is stored in the eeprom
 - The firmware can still be controlled with gcode sender tools via the UART/USB 
+
+- [Video: Functions](https://youtu.be/SWv79BavgKs)
 
 ### How to start:
 Please refer to grbl documentation for parameter settings and first steps. A good point to start is to:
@@ -190,7 +200,8 @@ Both paths should have the same number of points and edges. To go for that with 
 - do the post processing if required
 
 ### Check out the tutorial video
-ToDo Link to video firmare
+- [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
+- [Working with SketchUp Part 2](https://youtu.be/wnmAu0lhFRg)
 
 ![sketchup_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/sketchup_1.png)
 ![sketchup_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/sketchup_2.png)
@@ -198,6 +209,5 @@ ToDo Link to video firmare
 In addition you can import how files from WingHelper
 
 # Post processing
-
-ToDo
+will be posted soon...
  
