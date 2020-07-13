@@ -21,7 +21,7 @@ For controlling the four axis I found a solutions based on grbl 8c2 in combinati
 
 # Resources
 Many thanks to all the guys giving me grad inspirations with their projects
-- [rcKeith, Hot wire cutter](www.rckeith.co.uk/cnc-hot-wire-foam-cutter/)
+- [rcKeith, Hot wire cutter](https://www.rckeith.co.uk/cnc-hot-wire-foam-cutter/)
 - [4 axis foam cutter](https://github.com/rahulsarchive/4AxisFoamCutter)
 - [4 axis foam hotwire cutter](https://www.rcgroups.com/forums/showthread.php?2915801-4-Axis-Hot-Wire-CNC-(Arduino-Ramps1-4)-Complete-Solution)
 
