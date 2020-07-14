@@ -60,11 +60,17 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - optional: fans 12V
 - wire / connector
 
-
 Most of it is plugged together straight forward. A detailed list is included in the foamcutter.ino file.
 
 ![hardware_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/hardware_1.JPG)
 ![hardware_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/hardware_2.JPG)
+
+
+### Operation without buttons, leds and limit switches (minimum operation setup)
+There are some sets available for 3D printer, including Arduino Mega, Ramps 1.4, 128x64 Display with SD card reader and stepper driver 4988. The firmware can be configured to operate especially with this hardware setup, without buttons, led and limit switches. The usability is limited, but almost no soldering is needed.
+To use this setup, simply skip all steps related to limit switches, buttons and leds. the local button on the display is used as back button, all other operations can be handled with the jog.
+- set USE_LIMIT_SWITCHES to 0 in config.h to disable the limit switches 
+- set USE_BUTTONS to 0 in config.h to disable the buttons and leds 
 
 
 ### Modifications of Hardware:
@@ -75,11 +81,11 @@ Most of it is plugged together straight forward. A detailed list is included in 
 
 
 ### How to start:
-The Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE, please use the Serial Monitor (Baudrate 115200) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle in the parameter. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you may get a hard error, which blocks all communication to the Arduino. After that you should 
+The Arduino and the Ramps board are working without the stepper driver or motors or buttons,…. so only the limit switches should be disabled by setting 4 jumpers to the S and - Pin for X-/X+/Y-/Y+ an the Ramps. After downloading the firmware with the Arduino IDE, please use the Serial Monitor (Baudrate 115200) with the [grbl commands](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Commands) to disable hard limits and homing cycle in the parameter. After testing all axis, SD card, …, you can activate the limit switches (hard limits) and the homing cycle again. If you are not disabling the limit switches, you may get a hard error, which blocks all communication to the Arduino (not required, if USE_LIMIT_SWITCHES is set to 0). After that you should 
 - connect the display to the Ramps
 - connect the Arduino with the USB
 - load the firmware and check if you get a welcome screen
-- add the buttons and LEDs to the Ramps
+- add the buttons and LEDs to the Ramps (not required, if USE_BUTTONS is set to 0)
 - calculate the steps per mm and set the microstepps according with the jumpers (I use belt and pully with 80 steps / mm) 
 - add the stepper driver to the Ramps
 - adjust the driver [link](https://www.makerguides.com/a4988-stepper-motor-driver-arduino-tutorial/)
@@ -124,32 +130,32 @@ Please have a lock at the parameters (command $$ over Serial Monitor)
 
 
 ### Functions on local display / buttons
-- e-stop: IRQ based local stop, this does not match the requirements of any safety standard
+- e-stop: IRQ based local stop, this does not match the requirements of any safety standard (not available, if USE_BUTTONS is set to 0)
 - Idle stepper
-- Homing
+- Homing (not available, if USE_BUTTONS is set to 0)
   - homing including pull-off
   - set current position as new pull off position: This function is used to travel from limit switches to machine zero position. Adjust the position with the position menu
 - Position
   - adjust each axis independent
   - set or travel to a temporary home position
   - set or travel to a temporary zero position
-  - 8 buttons to control the movements
+  - 8 buttons to control the movements (not available, if USE_BUTTONS is set to 0)
 - SD-Card
   - read file list from SD-Card (only with defined file extensions (config.h), only from root directory, keep filenames short)
   - execute a file from the SD-Card
   - visualise the progress (bytes read and send to gcode processing, not bytes really executed)
 - Hotwire
   - switch on/off or change the power in %. New value is stored in the eeprom
-  - switch on/off with button
+  - switch on/off with button (not available, if USE_BUTTONS is set to 0)
   - indicate status with LED
 - Feed speed 
   - select the feed speed
   - new value is stored in the eeprom
   - if gcode includes feed rates, gcode values are used.
-  - adjust in big steps with Y- / Y+ buttons
+  - adjust in big steps with Y- / Y+ buttons (not available, if USE_BUTTONS is set to 0)
 - Cutting
   - this functions allows horizontal or vertical cutting w/o gcode
-  - select the cutting direction with the 8 buttons for the axis
+  - select the cutting direction with the 8 buttons for the axis (not available, if USE_BUTTONS is set to 0, direction is selected with jog)
   - define the maximum x/y travel for cutting (use position menue)
   - executes a cut by preheating the hotwire for 5 seconds
 - Fan
@@ -160,11 +166,11 @@ Please have a lock at the parameters (command $$ over Serial Monitor)
 
 ### How to start:
 Please refer to grbl documentation for parameter settings and first steps. A good point to start is to:
-- disable limit switches and homing cycle 
+- disable limit switches and homing cycle (not required, if USE_LIMIT_SWITCHES is set to 0)
 - set the steps per mm for each axis
 - check the direction and adjust with "step port invert mask"
 - check travel distances and optimize
-- activate homing cycle and check directions and adjust with "homing dir invert mask"
+- activate homing cycle and check directions and adjust with "homing dir invert mask" (not required, if USE_LIMIT_SWITCHES is set to 0)
 - a good setting to start is feedrate 300 mm/min, hotwire 80% on 30V DC for 75 cm hotwire
 
 
