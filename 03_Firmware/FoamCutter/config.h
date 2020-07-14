@@ -1,31 +1,3 @@
-/*
-  config.h - compile time configuration
-  Part of Grbl
-
-   The MIT License (MIT)
-
-  GRBL(tm) - Embedded CNC g-code interpreter and motion-controller
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-  Copyright (c) 2011-2013 Sungeun K. Jeon
-
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files (the "Software"), to deal
-  in the Software without restriction, including without limitation the rights
-  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-  copies of the Software, and to permit persons to whom the Software is
-  furnished to do so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in
-  all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-  THE SOFTWARE.
-*/
 
 // This file contains compile-time configurations for Grbl's internal system. For the most part,
 // users will not need to directly modify these, but they are here for specific needs, i.e.
@@ -52,7 +24,15 @@
 #define BAUD_RATE                         115200
 
 // always upload defaults parameter -> 1
-#define ALWAYS_DEFAULTS_SETTINGS  0       /// 0 normal
+#define ALWAYS_DEFAULTS_SETTINGS          0       
+
+// use limit switches in generall (1), parametersettings need to be set in addition
+// set to 0 to disable limit switches, this disables related functions on display/buttons, too
+#define USE_LIMIT_SWITCHES                1  
+
+// use buttons in generall (1)
+// set to 0 to disable buttons, this disables/changes related functions on display, too
+#define USE_BUTTONS                       1  
 
 
 // Default pin mappings. Grbl officially supports the Arduino Uno only. Other processor types

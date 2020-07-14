@@ -1,31 +1,3 @@
-/*
-  defaults.h - defaults settings configuration file
-  Part of Grbl
-
-   The MIT License (MIT)
-
-  GRBL(tm) - Embedded CNC g-code interpreter and motion-controller
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-  Copyright (c) 2011-2013 Sungeun K. Jeon
-
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files (the "Software"), to deal
-  in the Software without restriction, including without limitation the rights
-  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-  copies of the Software, and to permit persons to whom the Software is
-  furnished to do so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in
-  all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-  THE SOFTWARE.
-*/
 
 /* The defaults.h file serves as a central default settings file for different machine
    types, from DIY CNC mills to CNC conversions of off-the-shelf machines. The settings
@@ -85,8 +57,14 @@
   #define DEFAULT_REPORT_INCHES           0           // false
   #define DEFAULT_AUTO_START              1           // true
   #define DEFAULT_INVERT_ST_ENABLE        0           // false
+
+#if (USE_LIMIT_SWITCHES == 1)
   #define DEFAULT_HARD_LIMIT_ENABLE       1           // true
   #define DEFAULT_HOMING_ENABLE           1           // true
+#else
+  #define DEFAULT_HARD_LIMIT_ENABLE       0           // false
+  #define DEFAULT_HOMING_ENABLE           0           // false
+#endif
   #define DEFAULT_HOMING_DIR_MASK         225         // b7=Z, b6=Y, b5=X, b0=U
   #define DEFAULT_HOMING_RAPID_FEEDRATE   500.0       // mm/min nicht zu schnell fahren, damit der Endschalter nicht angeschossen wird
   #define DEFAULT_HOMING_FEEDRATE         100.0       // mm/min

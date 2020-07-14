@@ -164,7 +164,7 @@ uint8_t read_global_settings() {
       return(false); // report error
     } 
 #if (ALWAYS_DEFAULTS_SETTINGS == 1)
-      else {
+    else {
       settings_reset(true);   
     }
 #endif
@@ -172,6 +172,11 @@ uint8_t read_global_settings() {
   else {
     settings_reset(true);   
   }
+
+#if (USE_LIMIT_SWITCHES == 0)
+  settings.flags &= ~BITFLAG_HARD_LIMIT_ENABLE;
+  settings.flags &= ~BITFLAG_HOMING_ENABLE;
+#endif
   return(true);
 }
 
@@ -241,7 +246,7 @@ uint8_t settings_store_global_setting(int parameter, float value) {
       break;
     case 17:
       if (value)
-    settings.flags |= BITFLAG_HARD_LIMIT_ENABLE;
+        settings.flags |= BITFLAG_HARD_LIMIT_ENABLE;
       else
         settings.flags &= ~BITFLAG_HARD_LIMIT_ENABLE;
       limits_init(); // Re-init to immediately change. NOTE: Nice to have but could be problematic later.

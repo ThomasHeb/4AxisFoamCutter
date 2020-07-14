@@ -81,6 +81,7 @@ lcd_t lcd_data;
 #define   MENUE_MAIN_2_FAN                  1
 
 #define MENUE_POSITION_0                    4
+#if (USE_BUTTONS == 1)
 #define   MENUE_POSITION_SET_HOME           0
 #define   MENUE_POSITION_GOTO_HOME          1
 #define   MENUE_POSITION_100MM              2
@@ -89,6 +90,29 @@ lcd_t lcd_data;
 #define   MENUE_POSITION_01MM               5
 #define   MENUE_POSITION_GOTO_ZERO          6
 #define   MENUE_POSITION_SET_ZERO           7
+#else
+#define   MENUE_POSITION_SET_HOME           0
+#define   MENUE_POSITION_GOTO_HOME          1
+#define   MENUE_POSITION_X100MM             2
+#define   MENUE_POSITION_X10MM              3
+#define   MENUE_POSITION_X1MM               4
+#define   MENUE_POSITION_X01MM              5
+#define   MENUE_POSITION_U100MM             6
+#define   MENUE_POSITION_U10MM              7
+#define   MENUE_POSITION_U1MM               8
+#define   MENUE_POSITION_U01MM              9
+#define   MENUE_POSITION_Y100MM             10
+#define   MENUE_POSITION_Y10MM              11
+#define   MENUE_POSITION_Y1MM               12
+#define   MENUE_POSITION_Y01MM              13
+#define   MENUE_POSITION_Z100MM             14
+#define   MENUE_POSITION_Z10MM              15
+#define   MENUE_POSITION_Z1MM               16
+#define   MENUE_POSITION_Z01MM              17
+#define   MENUE_POSITION_GOTO_ZERO          18
+#define   MENUE_POSITION_SET_ZERO           19
+#endif
+
 #define   MENUE_POSITION_EXIT_MENUE         MENUE_MAIN_0
 #define   MENUE_POSITION_EXIT_CURSOR        MENUE_MAIN_0_POSITION
 
@@ -133,6 +157,7 @@ lcd_t lcd_data;
 
 
 // buttons:
+#define BTN_ONBOARD                   0x00000001
 #define BTN_ROTARY_PUSH               0x00000002
 #define BTN_ROTARY_EN1                0x00000004
 #define BTN_ROTARY_EN2                0x00000008
@@ -209,7 +234,8 @@ void lcd_init() {
   pinMode(PIN_BTN_HOTWIRE,    INPUT_PULLUP);
   pinMode(PIN_BTN_NONE_0,     INPUT_PULLUP);
  
-  
+  pinMode(PIN_BTN_ONBOARD,    INPUT_PULLUP);
+ 
 
   
 }
@@ -298,7 +324,12 @@ void lcd_process_menue_main() {
       switch (lcd_data.cursor_id) {
         case MENUE_MAIN_0_POSITION: 
           lcd_data.menue_id   =  MENUE_POSITION_0;   
+#if (USE_BUTTONS == 1)          
           lcd_data.cursor_id  =  MENUE_POSITION_1MM;   
+#else
+          lcd_data.cursor_id  =  MENUE_POSITION_X1MM;  
+          lcd_data.fvalue     =  0;
+#endif
           break;
         case MENUE_MAIN_0_SDCARD: 
           lcd_data.menue_id   =  MENUE_SDCARD_0;   
@@ -597,6 +628,8 @@ void lcd_process_menue_cutting() {
       lcd_data.menue_id       =  MENUE_CUTTING_EXIT_MENUE;   
       lcd_data.cursor_id      =  MENUE_CUTTING_EXIT_CURSOR;
     }
+    
+#if (USE_BUTTONS == 1)
     else if (lcd_data.buttons_redge & (BTN_Y_PLUS | BTN_Z_PLUS)) {
       lcd_data.cursor_id    =  MENUE_CUTTING_VER_POS;   
       lcd_data.refresh      =  1;     // ... reload
@@ -617,6 +650,20 @@ void lcd_process_menue_cutting() {
       lcd_data.cursor_id    =  MENUE_CUTTING_LIMIT;   
       lcd_data.refresh      =  1;     // ... reload
     }
+ #else 
+    else if (lcd_data.buttons_redge & BTN_ROTARY_DOWN) {
+      if (lcd_data.cursor_id < MENUE_CUTTING_LIMIT) {
+        lcd_data.cursor_id    += 1;
+        lcd_data.refresh      =  1;     // ... reload
+      }
+    }   
+    else if (lcd_data.buttons_redge & BTN_ROTARY_UP) {
+      if (lcd_data.cursor_id > MENUE_CUTTING_HOR_POS) {
+        lcd_data.cursor_id    -= 1;
+        lcd_data.refresh      =  1;     // ... reload
+      }
+    }
+ #endif   
     else if (lcd_data.buttons_redge & BTN_ROTARY_PUSH) {
       if (lcd_data.cursor_id ==  MENUE_CUTTING_LIMIT) {
         settings_store_global_setting(SETTINGS_CUTTING_HOR, gc.position[X_AXIS]);
@@ -684,8 +731,8 @@ void lcd_process_menue_cutting() {
 //  Position Menue 
 // ===============================================================================================
 void lcd_print_cursor(uint8_t digit, uint8_t x, uint8_t y) {
+#if (USE_BUTTONS == 1)
   x += 7+5+6 + 6;
-  lcd.setCursor(x, y);
   
   lcd.setFont(FONT_CURSOR_VER);
   x += digit * 6;
@@ -693,7 +740,30 @@ void lcd_print_cursor(uint8_t digit, uint8_t x, uint8_t y) {
     x += 3;
   lcd.setCursor(x, y);
   lcd.print(F("^")); 
+  
+#else
+  if (digit >= 8) {
+    y += 24;
+    digit -= 8;
+  }
+
+  if (digit >= 4) {
+    digit -= 4;
+    x += 64;
+  }
+  
+  x += 7+5+6 + 6;
+  
+  lcd.setFont(FONT_CURSOR_VER);
+  x += digit * 6;
+  if (digit > 2) 
+    x += 3;
+  lcd.setCursor(x, y);
+  lcd.print(F("^")); 
+  
+#endif
 }
+
 void lcd_print_position(char label, float value, uint8_t x, uint8_t y) {
   // print label
   lcd.setCursor(x, y);
@@ -748,19 +818,24 @@ void lcd_process_menue_position() {
       lcd.setCursor(50, 8);      lcd.print(F("in mm"));
       // menue items
       lcd.setFont(u8g2_font_helvR08_tr);
-      
+#if (USE_BUTTONS == 1)
       lcd_print_position('X', gc.position[X_AXIS] - gc.coord_system[X_AXIS], 6,    20); 
       lcd_print_position('Y', gc.position[Y_AXIS] - gc.coord_system[Y_AXIS], 6,    32); 
       lcd_print_position('U', gc.position[U_AXIS] - gc.coord_system[U_AXIS], 6+64, 20); 
       lcd_print_position('Z', gc.position[Z_AXIS] - gc.coord_system[Z_AXIS], 6+64, 32); 
-
+#else 
+      lcd_print_position('X', gc.position[X_AXIS] - gc.coord_system[X_AXIS], 6,    20); 
+      lcd_print_position('Y', gc.position[Y_AXIS] - gc.coord_system[Y_AXIS], 6,    32 + 12); 
+      lcd_print_position('U', gc.position[U_AXIS] - gc.coord_system[U_AXIS], 6+64, 20); 
+      lcd_print_position('Z', gc.position[Z_AXIS] - gc.coord_system[Z_AXIS], 6+64, 32 + 12); 
+#endif
       // TODO löschen
       // lcd_print_position('X', gc.coord_offset[X_AXIS], 6,    56); 
       // lcd_print_position('X', gc.coord_system[X_AXIS], 6+64,    56); 
       
       
      
- 
+#if (USE_BUTTONS == 1) 
       if (lcd_data.cursor_id == MENUE_POSITION_SET_HOME) {              // cursor_id: 0
         lcd.setFont(FONT_CURSOR_HOR);
         lcd.setCursor( 0, 44);      lcd.print(F(">"));
@@ -773,7 +848,7 @@ void lcd_process_menue_position() {
         lcd.setFont(u8g2_font_helvR08_tr);
         lcd.setCursor( 6, 44);      lcd.print(F("Goto home position"));
       } 
-      else if (lcd_data.cursor_id < 6) {          // cursor_id: 2...5
+      else if (lcd_data.cursor_id < MENUE_POSITION_GOTO_ZERO) {          // cursor_id: 2...5
         lcd_print_cursor(lcd_data.cursor_id - 2, 6,    44);
         lcd_print_cursor(lcd_data.cursor_id - 2, 6+64, 44);
       }
@@ -789,29 +864,62 @@ void lcd_process_menue_position() {
         lcd.setFont(u8g2_font_helvR08_tr);
         lcd.setCursor( 6, 44);      lcd.print(F("Set as zero position"));
       } 
+ #else      
+     if (lcd_data.cursor_id == MENUE_POSITION_SET_HOME) {              // cursor_id: 0
+        lcd.setFont(FONT_CURSOR_HOR);
+        lcd.setCursor( 0, 44 + 16);      lcd.print(F(">"));
+        lcd.setFont(u8g2_font_helvR08_tr);
+        lcd.setCursor( 6, 44 + 16);      lcd.print(F("Set as home position"));
+      }
+      else if (lcd_data.cursor_id == MENUE_POSITION_GOTO_HOME) {         // cursor_id: 1
+        lcd.setFont(FONT_CURSOR_HOR);
+        lcd.setCursor( 0, 44 + 16);      lcd.print(F(">"));
+        lcd.setFont(u8g2_font_helvR08_tr);
+        lcd.setCursor( 6, 44 + 16);      lcd.print(F("Goto home position"));
+      } 
+      else if (lcd_data.cursor_id < MENUE_POSITION_GOTO_ZERO) {        
+        lcd_print_cursor(lcd_data.cursor_id - 2, 6,    32);
+      }
+      else if (lcd_data.cursor_id == MENUE_POSITION_GOTO_ZERO) {         
+        lcd.setFont(FONT_CURSOR_HOR);
+        lcd.setCursor( 0, 44 + 16);      lcd.print(F(">"));
+        lcd.setFont(u8g2_font_helvR08_tr);
+        lcd.setCursor( 6, 44 + 16);      lcd.print(F("Goto zero position"));
+      }
+      if (lcd_data.cursor_id == MENUE_POSITION_SET_ZERO) {              
+        lcd.setFont(FONT_CURSOR_HOR);
+        lcd.setCursor( 0, 44 + 16);      lcd.print(F(">"));
+        lcd.setFont(u8g2_font_helvR08_tr);
+        lcd.setCursor( 6, 44 + 16);      lcd.print(F("Set as zero position"));
+      } 
+ #endif     
       lcd.sendBuffer();
     }
+ #if (USE_BUTTONS == 1) 
     char   gc_c[20];
     String gc_command;
     String gc_step;
-    
+
     gc_step = "0";
-    if (lcd_data.cursor_id == 5)    gc_step = "0.1";
-    if (lcd_data.cursor_id == 4)    gc_step = "1";
-    if (lcd_data.cursor_id == 3)    gc_step = "10";
-    if (lcd_data.cursor_id == 2)    gc_step = "100";
+    if (lcd_data.cursor_id == MENUE_POSITION_01MM)    gc_step = "0.1";
+    if (lcd_data.cursor_id == MENUE_POSITION_1MM)     gc_step = "1";
+    if (lcd_data.cursor_id == MENUE_POSITION_10MM)    gc_step = "10";
+    if (lcd_data.cursor_id == MENUE_POSITION_100MM)   gc_step = "100";
+
 
     if (lcd_data.buttons_redge & BTN_BACK) {
       lcd_data.refresh        =  1;     // ... back to main menue
       lcd_data.menue_id       =  MENUE_POSITION_EXIT_MENUE;   
       lcd_data.cursor_id      =  MENUE_POSITION_EXIT_CURSOR;
-    } else if (lcd_data.buttons_redge & BTN_ROTARY_UP) {
-      if (lcd_data.cursor_id > 0) {     // if cursur is in range
+    } 
+    else if (lcd_data.buttons_redge & BTN_ROTARY_UP) {
+      if (lcd_data.cursor_id > MENUE_POSITION_SET_HOME) {     // if cursur is in range
         lcd_data.cursor_id    -= 1;     // ... select previous entry
         lcd_data.refresh      =  1;     // ... reload
       }
-    } else if (lcd_data.buttons_redge & BTN_ROTARY_DOWN) {
-      if (lcd_data.cursor_id < 7) {     // if cursur is in range
+    } 
+    else if (lcd_data.buttons_redge & BTN_ROTARY_DOWN) {
+      if (lcd_data.cursor_id < MENUE_POSITION_SET_ZERO) {     // if cursur is in range
         lcd_data.cursor_id    += 1;     // ... select next entry
         lcd_data.refresh      =  1;     // ... reload
       }
@@ -887,6 +995,94 @@ void lcd_process_menue_position() {
       lcd_data.refresh      =  1;     // ... reload
       
     }    
+#else
+    if (lcd_data.buttons_redge & BTN_BACK) {
+      lcd_data.refresh        =  1;     // ... back to main menue
+      lcd_data.menue_id       =  MENUE_POSITION_EXIT_MENUE;   
+      lcd_data.cursor_id      =  MENUE_POSITION_EXIT_CURSOR;
+    } 
+    else if (lcd_data.buttons_redge & BTN_ROTARY_UP) {
+      if (lcd_data.fvalue == 0) {
+        if (lcd_data.cursor_id > MENUE_POSITION_SET_HOME) {     // if cursur is in range
+          lcd_data.cursor_id    -= 1;     // ... select previous entry
+          lcd_data.refresh      =  1;     // ... reload
+        }
+      } else {
+                                                              report_status_message(gc_execute_line("G91"));
+        if (lcd_data.cursor_id == MENUE_POSITION_X01MM)       report_status_message(gc_execute_line("G1X-0.1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_X1MM)        report_status_message(gc_execute_line("G1X-1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_X10MM)       report_status_message(gc_execute_line("G1X-10"));
+        if (lcd_data.cursor_id == MENUE_POSITION_X100MM)      report_status_message(gc_execute_line("G1X-100"));
+        if (lcd_data.cursor_id == MENUE_POSITION_U01MM)       report_status_message(gc_execute_line("G1U-0.1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_U1MM)        report_status_message(gc_execute_line("G1U-1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_U10MM)       report_status_message(gc_execute_line("G1U-10"));
+        if (lcd_data.cursor_id == MENUE_POSITION_U100MM)      report_status_message(gc_execute_line("G1U-100"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Y01MM)       report_status_message(gc_execute_line("G1Y-0.1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Y1MM)        report_status_message(gc_execute_line("G1Y-1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Y10MM)       report_status_message(gc_execute_line("G1Y-10"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Y100MM)      report_status_message(gc_execute_line("G1Y-100"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Z01MM)       report_status_message(gc_execute_line("G1Z-0.1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Z1MM)        report_status_message(gc_execute_line("G1Z-1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Z10MM)       report_status_message(gc_execute_line("G1Z-10"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Z100MM)      report_status_message(gc_execute_line("G1Z-100"));
+      
+        lcd_data.refresh      =  1;     // ... reload
+      }
+    } 
+    else if (lcd_data.buttons_redge & BTN_ROTARY_DOWN) {
+      if (lcd_data.fvalue == 0) {
+        if (lcd_data.cursor_id < MENUE_POSITION_SET_ZERO) {     // if cursur is in range
+          lcd_data.cursor_id    += 1;     // ... select next entry
+          lcd_data.refresh      =  1;     // ... reload
+        }
+      } else {
+                                                              report_status_message(gc_execute_line("G91"));
+        if (lcd_data.cursor_id == MENUE_POSITION_X01MM)       report_status_message(gc_execute_line("G1X0.1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_X1MM)        report_status_message(gc_execute_line("G1X1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_X10MM)       report_status_message(gc_execute_line("G1X10"));
+        if (lcd_data.cursor_id == MENUE_POSITION_X100MM)      report_status_message(gc_execute_line("G1X100"));
+        if (lcd_data.cursor_id == MENUE_POSITION_U01MM)       report_status_message(gc_execute_line("G1U0.1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_U1MM)        report_status_message(gc_execute_line("G1U1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_U10MM)       report_status_message(gc_execute_line("G1U10"));
+        if (lcd_data.cursor_id == MENUE_POSITION_U100MM)      report_status_message(gc_execute_line("G1U100"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Y01MM)       report_status_message(gc_execute_line("G1Y0.1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Y1MM)        report_status_message(gc_execute_line("G1Y1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Y10MM)       report_status_message(gc_execute_line("G1Y10"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Y100MM)      report_status_message(gc_execute_line("G1Y100"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Z01MM)       report_status_message(gc_execute_line("G1Z0.1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Z1MM)        report_status_message(gc_execute_line("G1Z1"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Z10MM)       report_status_message(gc_execute_line("G1Z10"));
+        if (lcd_data.cursor_id == MENUE_POSITION_Z100MM)      report_status_message(gc_execute_line("G1Z100"));
+        
+        lcd_data.refresh      =  1;     // ... reload
+      }
+
+    } else if (lcd_data.buttons_redge & BTN_ROTARY_PUSH) {
+      if (lcd_data.cursor_id == MENUE_POSITION_SET_HOME) { 
+        report_status_message(gc_execute_line("G28.1"));
+        lcd_data.refresh      =  1;     // ... reload
+      } else if (lcd_data.cursor_id == MENUE_POSITION_GOTO_HOME) { 
+        report_status_message(gc_execute_line("G28"));
+        lcd_data.refresh      =  1;     // ... reload
+      } else if (lcd_data.cursor_id == MENUE_POSITION_GOTO_ZERO) { 
+        report_status_message(gc_execute_line("G90"));
+        report_status_message(gc_execute_line("G1X0Y0U0Z0"));
+        lcd_data.refresh      =  1;     // ... reload
+      } else if (lcd_data.cursor_id == MENUE_POSITION_SET_ZERO) { 
+        report_status_message(gc_execute_line("G10L20P1X0Y0U0Z0"));
+        lcd_data.refresh      =  1;     // ... reload
+      } 
+      else {
+        if (lcd_data.fvalue == 0) {
+          lcd_data.fvalue = 1;
+        } else {
+          lcd_data.fvalue = 0;
+        }
+        lcd_data.refresh      =  1;     // ... reload
+      }
+    } 
+#endif
+
     lcd_data.buttons_redge        = 0;              // reset all edge indicators
     lcd_data.buttons_fedge        = 0; 
   }
@@ -907,7 +1103,9 @@ void lcd_process_menue_homing() {
       // menue items
       lcd.setFont(u8g2_font_helvR08_tr);
       lcd.setCursor(  6, 20);        
-      
+#if (USE_LIMIT_SWITCHES == 0)
+      lcd.print(F("Not available"));  
+#else 
       if (lcd_data.cursor_id == 0) {
         lcd.print(F("Execute?"));     
         lcd.setCursor( 80, 20); 
@@ -925,9 +1123,12 @@ void lcd_process_menue_homing() {
         lcd_print_position('U', settings.homing_pulloff[U_AXIS] + gc.position[U_AXIS], 6+64, 38); 
         lcd_print_position('Z', settings.homing_pulloff[Z_AXIS] + gc.position[Z_AXIS], 6+64, 50);       
       }   
+#endif
       lcd.sendBuffer();
     }
 
+    
+#if (USE_LIMIT_SWITCHES == 1)
     if (lcd_data.buttons_redge & BTN_BACK) {
       lcd_data.refresh        =  1;     // ... back to main menue
       lcd_data.menue_id       =  MENUE_HOMING_EXIT_MENUE;   
@@ -942,7 +1143,8 @@ void lcd_process_menue_homing() {
       if (lcd_data.cursor_id > 0)
           lcd_data.cursor_id  -= 1;     // ... select previous mode
         lcd_data.refresh      =  1;     // ... reload
-    } else if (lcd_data.buttons_redge & BTN_ROTARY_PUSH) {
+    } 
+    else if (lcd_data.buttons_redge & BTN_ROTARY_PUSH) {
       if (lcd_data.cursor_id == 1) {
         // Performe Homing
         report_status_message(protocol_execute_line("$H"));
@@ -969,6 +1171,13 @@ void lcd_process_menue_homing() {
       lcd_data.menue_id       =  MENUE_HOMING_EXIT_MENUE;   
       lcd_data.cursor_id      =  MENUE_HOMING_EXIT_CURSOR;
     }
+#else 
+    if (lcd_data.buttons_redge & (BTN_BACK | BTN_ROTARY_PUSH)) {
+      lcd_data.refresh        =  1;     // ... back to main menue
+      lcd_data.menue_id       =  MENUE_HOMING_EXIT_MENUE;   
+      lcd_data.cursor_id      =  MENUE_HOMING_EXIT_CURSOR;
+    }
+#endif
     
     lcd_data.buttons_redge        = 0;              // reset all edge indicators
     lcd_data.buttons_fedge        = 0; 
@@ -1526,8 +1735,16 @@ void lcd_process_menue_sdcard() {
 void lcd_process(){
   // read the buttons and stabilize
   uint32_t image = 0;
+#if (USE_BUTTONS == 0)  
+  if (digitalRead(PIN_BTN_ONBOARD) == LOW)
+    image                       |=  BTN_BACK;
+#else
+  if (digitalRead(PIN_BTN_ONBOARD) == LOW)
+    image                       |=  BTN_ONBOARD;
   if (digitalRead(PIN_BTN_BACK) == LOW)
     image                       |=  BTN_BACK;
+#endif
+
   if (digitalRead(PIN_ENC) == LOW)
     image                       |=  BTN_ROTARY_PUSH;
   if (digitalRead(PIN_EN1) == LOW)
@@ -1536,6 +1753,8 @@ void lcd_process(){
     image                       |=  BTN_ROTARY_EN2;
   if (digitalRead(PIN_SD_DET) == LOW)
     image                       |=  SD_DETECTED;
+
+#if (USE_BUTTONS == 1)      
   if (digitalRead(PIN_BTN_HOTWIRE) == LOW)
     image                       |=  BTN_HOTWIRE;
   if (digitalRead(PIN_BTN_NONE_0) == LOW)
@@ -1556,11 +1775,11 @@ void lcd_process(){
     image                       |=  BTN_U_PLUS;
   if (digitalRead(PIN_BTN_U_MINUS) == LOW)
     image                       |=  BTN_U_MINUS;
-
+#endif
      
   // wait until all buttons are stable
   if (image == lcd_data.buttons_image) {
-    if (lcd_data.buttons_cnt >= 100) {
+    if (lcd_data.buttons_cnt >= 50) {
       lcd_data.buttons_cnt      = 0;
       // set previous buttons state
       lcd_data.buttons_prev     = lcd_data.buttons;
@@ -1586,7 +1805,7 @@ void lcd_process(){
     lcd_data.buttons_cnt        =   0;
   }
 
-
+#if (USE_BUTTONS == 1)
   // process global buttons
   if (lcd_data.buttons_redge & BTN_HOTWIRE) { 
     // toggle hotwire
@@ -1596,6 +1815,7 @@ void lcd_process(){
       hotwire_off();
     }
   }
+#endif
 
   // show and handle menues
   lcd_process_menue_welcome();

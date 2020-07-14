@@ -1,8 +1,3 @@
-/*
-  pin_map.h - Pin mapping configuration file
-  Part of Grbl
-*/
-
 /* The pin_map.h file serves as a central pin mapping settings file for different processor
    types, i.e. AVR 328p or AVR Mega 2560. Grbl officially supports the Arduino Uno, but the
    other supplied pin mappings are supplied by users, so your results may vary. */

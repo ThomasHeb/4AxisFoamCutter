@@ -27,7 +27,6 @@ void limits_init()
   pinMode(PIN_LIMIT_Y, INPUT_PULLUP); // D2  = INT4
   pinMode(PIN_LIMIT_U, INPUT_PULLUP); // D14 = PCINT10
   pinMode(PIN_LIMIT_Z, INPUT_PULLUP); // D15 = PCINT9
-  pinMode(PIN_BTN_STOP,INPUT_PULLUP); // D63 = PCINT17
   
   if (bit_istrue(settings.flags,BITFLAG_HARD_LIMIT_ENABLE)) {
     limits_enable();
@@ -35,9 +34,12 @@ void limits_init()
     limits_disable();
   }
 
+#if (USE_BUTTONS == 1)
+  pinMode(PIN_BTN_STOP,INPUT_PULLUP); // D63 = PCINT17
   // e-stopp interrupt
   PCMSK2  |=   (1 << PCINT17);
   PCICR   |=   (1 << PCIE2);
+#endif
 
 #ifdef LIMITS_SW_DEBOUNCE
   MCUSR &= ~(1<<WDRF);        
