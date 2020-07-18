@@ -393,8 +393,9 @@ void plan_buffer_line(float x, float y, float u, float z, float feed_rate, uint8
     inverse_minute = feed_rate * inverse_millimeters;
   }
   else {
-    inverse_minute = 1.0 / feed_rate;
+    inverse_minute = /* 1.0 / if feedrate is G93 it is already inverted!!!*/ feed_rate;
   }
+  
   block->nominal_speed = block->millimeters * inverse_minute; // (mm/min) Always > 0
   block->nominal_rate = ceil(block->step_event_count * inverse_minute); // (step/min) Always > 0
 
