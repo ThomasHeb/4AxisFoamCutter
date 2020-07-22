@@ -35,8 +35,8 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [Working with SketchUp Part 3](https://youtu.be/uU0HhuviuLE)
 - [Post processing](https://youtu.be/D0ZCudA9wv8)
 - [Feed speed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
-- [Post processing code insides](https://youtu.be/swo1cA1UJYg)
-
+- [Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
+- [Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
 
 # Mechanics
 - 4x linear v-slot actuator with NEMA 17
@@ -255,5 +255,6 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 ###  Changing Values / Coordinates:
 - optional, see FCalc.swift
 
-[Video: Post processing code insides](https://youtu.be/swo1cA1UJYg)
+[Video: Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
+[Video: Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
 
