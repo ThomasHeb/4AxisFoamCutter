@@ -226,13 +226,19 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 ### Settings
 - All settings have a unique ID (see SettingsTableKey for all values) for access
 - Reading:
-  - dataTypeForKey(_ key: SettingsTableKey) -> DataType              the Datatype of the Setting
-  - labelForKey(_ key: SettingsTableKey) -> String                   the label for the setting
-  - valueForKey(_ key: SettingsTableKey) -> String                   the value for the key as formatted string
+  - dataTypeForKey(_ key: SettingsTableKey) -> DataType              
+    the Datatype of the setting for correct visualisation/layout
+  - labelForKey(_ key: SettingsTableKey) -> String                   
+    the label for the setting
+  - valueForKey(_ key: SettingsTableKey) -> String                   
+    the value itself for the key as formatted string
 - Writing:
-  - isEditableForKey(_ key: SettingsTableKey) -> Bool                indicates wheather this type is editable
-  - isValueValid(_ key: SettingsTableKey, value: String?) -> Bool    a string can be tested, if it is acceptable for this setting
-  - valueForKey(_ key: SettingsTableKey, value: String?)             writes a string to the setting
+  - isEditableForKey(_ key: SettingsTableKey) -> Bool                
+    indicates wheather this type is editable
+  - isValueValid(_ key: SettingsTableKey, value: String?) -> Bool    
+    a string can be tested, if it is acceptable for this setting
+  - valueForKey(_ key: SettingsTableKey, value: String?)             
+    writes a string to the setting
 - Usage: Generate an array of SettingsTableKey-values to be displayed and catch the content with the functions above
 - All is handled with strings, so no need of type conversion
 
@@ -240,9 +246,11 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 - Supported filetypes;
   - gcode, nc: simple gcode wit G00/G0, G01, G1, G90, G91, ...
   - how: Winghelper ICE export with absolute coordinates
-  - loadShapeFromFile(_ file: String) -> Int       =  0 if ok / != 0 if not ok
+  - loadShapeFromFile(_ file: String) -> Int       
+    =  0 if ok / != 0 if not ok
 - Save a file in gcode format
-  saveGCodeToFile(_ file: String) -> Int         =  0 if ok / != 0 if not ok
+  saveGCodeToFile(_ file: String) -> Int         
+  =  0 if ok / != 0 if not ok
 
 ###  Callbacks (FCalcCallback):
 - updateSettingsTableView()  
