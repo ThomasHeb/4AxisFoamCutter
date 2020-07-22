@@ -33,7 +33,9 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
 - [Working with SketchUp Part 2](https://youtu.be/SIh3zpsxGX4)
 - [Working with SketchUp Part 3](https://youtu.be/uU0HhuviuLE)
+- [Post processing](https://youtu.be/D0ZCudA9wv8)
 - [Feed speed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
+- [Post processing code insides](https://youtu.be/swo1cA1UJYg)
 
 
 # Mechanics
@@ -217,5 +219,41 @@ Both paths should have the same number of points and edges. To go for that with 
 In addition you can import how files from WingHelper
 
 # Post processing
-will be posted soon...
- 
+Designing the shape of a wing or a fuselage requires in most times an additional step to tell the machine / foam cutter how to produce it. This step is called post processing. It allows you to generate machine executable or interpretable code (gcode) and add machine, tool and material specific information (hot wire temperature, travel speed, position of foam block, …). I wrote a pice of code, do adopt my SketchUp files and my WingHelper Designs to my foam cutter. The code is written in swift for mac os, but the basic ideas can be easily adopted to other languages. All post processing functions are bundled in the class FCalc (FCalc.swift). Interfacing is handled with key to access the values and the labels/descriptions to the values. The values itself are exchanged as Strings, because most of them are changed by user, so all type checking stuff is integrated in FCalc, too. Detailed interface description is available in FCalc.swift.
+
+[Video: Post processing](https://youtu.be/D0ZCudA9wv8)
+
+### Settings
+- All settings have a unique ID (see SettingsTableKey for all values) for access
+- Reading:
+  - dataTypeForKey(_ key: SettingsTableKey) -> DataType              the Datatype of the Setting
+  - labelForKey(_ key: SettingsTableKey) -> String                   the label for the setting
+  - valueForKey(_ key: SettingsTableKey) -> String                   the value for the key as formatted string
+- Writing:
+  - isEditableForKey(_ key: SettingsTableKey) -> Bool                indicates wheather this type is editable
+  - isValueValid(_ key: SettingsTableKey, value: String?) -> Bool    a string can be tested, if it is acceptable for this setting
+  - valueForKey(_ key: SettingsTableKey, value: String?)             writes a string to the setting
+- Usage: Generate an array of SettingsTableKey-values to be displayed and catch the content with the functions above
+- All is handled with strings, so no need of type conversion
+
+### Load a file / Save GCode
+- Supported filetypes;
+  - gcode, nc: simple gcode wit G00/G0, G01, G1, G90, G91, ...
+  - how: Winghelper ICE export with absolute coordinates
+  - loadShapeFromFile(_ file: String) -> Int       =  0 if ok / != 0 if not ok
+- Save a file in gcode format
+  saveGCodeToFile(_ file: String) -> Int         =  0 if ok / != 0 if not ok
+
+###  Callbacks (FCalcCallback):
+- updateSettingsTableView()  
+  called, wenn the table for the settings needs to be updated
+- updatePositionsTableView(_ atIndex: Int?)                                 
+  called, wenn the table for the positions needs to be updated
+- updatePreview(_ node: SCNNode)  
+  called, whenn the Graph is updated, check if Node is already linked
+
+###  Changing Values / Coordinates:
+- optional, see FCalc.swift
+
+[Video: Post processing code insides](https://youtu.be/swo1cA1UJYg)
+
