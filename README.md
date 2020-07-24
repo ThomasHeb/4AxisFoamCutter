@@ -37,6 +37,8 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [Feed speed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
 - [Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
 - [Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
+- [Post processing merging shapes](https://youtu.be/Z-096iua6jk)
+
 
 # Mechanics
 - 4x linear v-slot actuator with NEMA 17
@@ -265,4 +267,4 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 
 [Video: Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
 [Video: Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
-
+[Video: Post processing merging shapes](https://youtu.be/Z-096iua6jk)
