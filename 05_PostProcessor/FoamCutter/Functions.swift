@@ -2,49 +2,7 @@
 import Foundation
 
 // MARK: - Registry
-func getReg(_ forKey: String?) -> Int? {
-    if let key = forKey {
-        return UserDefaults.standard.integer(forKey: key)
-    } else {
-        return nil
-    }
-}
-func getReg(_ forKey: String?) -> String? {
-    if let key = forKey {
-        return UserDefaults.standard.string(forKey: key)
-    } else {
-        return nil
-    }
-}
-func getReg(_ forKey: String?) -> Bool {
-    if let key = forKey {
-        return UserDefaults.standard.bool(forKey: key)
-    } else {
-        return false
-    }
-}
-func setReg(_ forKey: String?, value: Int?) {
-    if let key = forKey,
-        let v   = value {
-        return UserDefaults.standard.set(v, forKey: key)
-    }
-}
-func setReg(_ forKey: String?, value: String?) {
-    if let key = forKey,
-        let v   = value {
-        return UserDefaults.standard.set(v, forKey: key)
-    }
-}
-func setReg(_ forKey: String?, value: Bool) {
-    if let key = forKey {
-        return UserDefaults.standard.set(value, forKey: key)
-    }
-}
-func clearReg(_ forKey: String?) {
-    if let key = forKey {
-        return UserDefaults.standard.set(nil, forKey: key)
-    }
-}
+
 extension CharacterSet {
     func containsUnicodeScalars(of character: Character) -> Bool {
         return character.unicodeScalars.allSatisfy(contains(_:))

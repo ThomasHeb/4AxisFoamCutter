@@ -1,11 +1,3 @@
-//
-//  ViewController.swift
-//  FoamCutter
-//
-//  Created by Thomas Heberlein on 17.06.20.
-//  Copyright © 2020 none. All rights reserved.
-//
-
 import Cocoa
 import SceneKit
 import SwiftUI
@@ -14,76 +6,32 @@ import SwiftUI
 
 class ViewController: NSViewController, FCalcCallback {
     
+    var     appDelegate:    AppDelegate!
+    var     fcalc:          FCalc!
     
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+        // get a reference to the App
+        appDelegate     = NSApplication.shared.delegate as? AppDelegate
+        // get a reference to the fcalc
+        fcalc           = appDelegate.fcalc
+        // callback is performed here
+        fcalc.callback  = self
+       
+    }
     
     @IBOutlet weak var settingsTableView: NSTableView!
-    let settings:       [FCalc.SettingsTableKey]     =
-                                          [ .cutter,
-                                            .cutterWidth,
-                                            .cutterHeight,
-                                            .cutterDepth,
-                                            .labelX1Axis,
-                                            .labelY1Axis,
-                                            .labelX2Axis,
-                                            .labelY2Axis,
-                                            .gcodeDecimals,
-                                            .spacer,
-                                            .shape,
-                                            .shapeWidth,
-                                            .shapeSpacingLeft,
-                                            .shapeRotation,
-                                            .shapeX,
-                                            .shapeY,
-                                            .shapeMirror,
-                                            .shapeFlip,
-                                            .spacer,
-                                            .block,
-                                            .blockWidth,
-                                            .blockHeight,
-                                            .blockDepth,
-                                            .spacer,
-                                            .blockSpacingLeft,
-                                            .blockSpacingFront,
-                                            .blockSpacingUnder,
-                                            .blockRotation,
-                                            .spacer,
-                                            .targetFeedSpeed,
-                                            .feedSpeedCorrection,
-                                            .pretravelSpeed,
-                                            .fastPretravel,
-                                            .maxFeedSpeed,
-                                            .spacer,
-                                            .hotwirePower,
-                                            .hotwirePreheat,
-                                            .spacer,
-                                            .chart,
-                                            .showBlockGraph,
-                                            .showShapeCutGraph,
-                                            .showShapeGraph,
-                                            .showAxisGraph,
-                                            .showCutterGraph,
-                                            
-                                          ]
-
     @IBOutlet weak var positionsTableViewHeader: NSTableHeaderView!
     @IBOutlet weak var positionsTableView: NSTableView!
-    
-    
     @IBOutlet var preview:       SCNView!
     var           scnPreview:    SCNScene!
     
-    var fcalc:              FCalc       = FCalc()
     
       
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Do any additional setup after loading the view.
         
-        // ToDo hier die Parameter aus der Regestry laden
-        fcalc.callback                  = self
-        
-        
+        // Update the tables
         settingsTableView.reloadData()
         positionsTableView.reloadData()
         
@@ -91,19 +39,15 @@ class ViewController: NSViewController, FCalcCallback {
         //menu.addItem(NSMenuItem(title: "Edit", action: #selector(tableViewEditItemClicked(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Delete line", action: #selector(tableViewDeleteItemClicked(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Insert line above", action: #selector(tableViewAddBeforItemClicked(_:)), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "insert line below", action: #selector(tableViewAddAfterItemClicked(_:)), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "import above", action: #selector(tableViewImportBeforeItemClicked(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Insert line below", action: #selector(tableViewAddAfterItemClicked(_:)), keyEquivalent: ""))
         positionsTableView.menu = menu
     
-        
+        // Setup the preview
         scnPreview = SCNScene()
         preview.scene = scnPreview
-        
-                   
         preview.allowsCameraControl = true
         preview.autoenablesDefaultLighting = true
-      
-        // ToDo only for testing
+      // ToDo only for testing
         preview.showsStatistics = true
         
     }
@@ -164,103 +108,31 @@ class ViewController: NSViewController, FCalcCallback {
     }
     
     // Buttons
-
-    @IBAction func onBrowse(_ sender: Any) {
-        let dialog                     = NSOpenPanel()
-        dialog.title                   = "Choose a file"
-        dialog.showsResizeIndicator    = true
-        dialog.showsHiddenFiles        = false
-        dialog.canChooseDirectories    = false
-        dialog.canCreateDirectories    = true
-        dialog.allowsMultipleSelection = false
-        dialog.allowedFileTypes        = fcalc.allowedFileTypes
-
-        if (dialog.runModal() == NSApplication.ModalResponse.OK) {
-            let result = dialog.url // Pathname of the file
-            
-            if (result != nil) {
-                let path = result!.path
-                _ = fcalc.loadShapeFromFile(path)
-            }
-        } else {
-            // User clicked on "Cancel"
-            return
-        }
-    }
-    
-    @IBAction func onAdd(_ sender: Any) {
-        NSLog("Not working")
-        /*
-        let dialog                     = NSOpenPanel()
-        dialog.title                   = "Choose a file"
-        dialog.showsResizeIndicator    = true
-        dialog.showsHiddenFiles        = false
-        dialog.canChooseDirectories    = false
-        dialog.canCreateDirectories    = true
-        dialog.allowsMultipleSelection = false
-        dialog.allowedFileTypes        = fcalc.allowedFileTypes
-
-        if (dialog.runModal() == NSApplication.ModalResponse.OK) {
-            let result = dialog.url // Pathname of the file
-            
-            if (result != nil) {
-                let path = result!.path
-                _ = fcalc.addShapeFromFile(path)
-            }
-        } else {
-            // User clicked on "Cancel"
-            return
-        }
-        */
-    }
-    @IBAction func onStore(_ sender: Any) {
-        let dialog = NSSavePanel();
-        
-        dialog.title                   = "Save gcode file";
-        dialog.showsResizeIndicator    = true;
-        dialog.showsHiddenFiles        = false;
-        dialog.canCreateDirectories    = false;
-        dialog.nameFieldStringValue    = (fcalc.name ?? "unbekannt") + ".gcode"
-        dialog.allowedFileTypes        = ["gcode"];
-
-        if (dialog.runModal() == NSApplication.ModalResponse.OK) {
-            let result = dialog.url // Pathname of the file
-            
-            if (result != nil) {
-                let path = result!.path
-                _ = fcalc.saveGCodeToFile(path)
-            }
-        } else {
-            // User clicked on "Cancel"
-            return
-        }
-    }
-    
-    @IBAction func onPlay(_ sender: Any) {
-        fcalc.play()
-    }
-    @IBAction func onPause(_ sender: Any) {
-        fcalc.pause()
-    }
-    @IBAction func onStop(_ sender: Any) {
-        fcalc.stop()
-    }
     
     @IBAction func setCameraTop(_ sender: Any) {
-        NSLog("Not working")
+        // delete the user temporary camera
+        preview.pointOfView = nil
         fcalc.setCamera(.top)
     }
     @IBAction func setCameraFront(_ sender: Any) {
-        NSLog("Not working")
+        // delete the user temporary camera
+        preview.pointOfView = nil
         fcalc.setCamera(.front)
     }
     @IBAction func setCameraLeft(_ sender: Any) {
-        NSLog("Not working")
+        // delete the user temporary camera
+        preview.pointOfView = nil
         fcalc.setCamera(.left)
     }
     @IBAction func setCameraRight(_ sender: Any) {
-        NSLog("Not working")
+        // delete the user temporary camera
+        preview.pointOfView = nil
         fcalc.setCamera(.right)
+    }
+    @IBAction func setCameraHome(_ sender: Any) {
+        // delete the user temporary camera
+        preview.pointOfView = nil
+        fcalc.setCamera(.home)
     }
     
     
@@ -472,7 +344,7 @@ extension ViewController: NSTableViewDataSource, NSTableViewDelegate, SettingsTa
     
     func numberOfRows(in tableView: NSTableView) -> Int {
         if tableView == settingsTableView {
-            return settings.count
+            return appDelegate.settings.count
         }
         if tableView == positionsTableView {
             return fcalc.numberOfPositions
@@ -483,7 +355,7 @@ extension ViewController: NSTableViewDataSource, NSTableViewDelegate, SettingsTa
         if tableView == settingsTableView {
             var cellIdentifier:     String      = ""
             
-            let key         = settings[row]
+            let key         = appDelegate.settings[row]
             let dataType    = fcalc.dataTypeForKey(key)
             let isEditable  = fcalc.isEditableForKey(key)
             let label       = fcalc.labelForKey(key)
@@ -661,31 +533,7 @@ extension ViewController: NSTableViewDataSource, NSTableViewDelegate, SettingsTa
         let index = positionsTableView.clickedRow
         fcalc.deleteIndex(index)
     }
-    @objc private func tableViewImportBeforeItemClicked(_ sender: AnyObject) {
-        let index = positionsTableView.clickedRow
-        
-        let dialog                     = NSOpenPanel()
-        dialog.title                   = "Choose a file"
-        dialog.showsResizeIndicator    = true
-        dialog.showsHiddenFiles        = false
-        dialog.canChooseDirectories    = false
-        dialog.canCreateDirectories    = true
-        dialog.allowsMultipleSelection = false
-        dialog.allowedFileTypes        = fcalc.allowedFileTypes
-
-        if (dialog.runModal() == NSApplication.ModalResponse.OK) {
-            let result = dialog.url // Pathname of the file
-                   
-            if (result != nil) {
-                let path = result!.path
-                _ = fcalc.addShapeFromFile(path, index: index)
-            }
-        } else {
-            // User clicked on "Cancel"
-            return
-        }
-    }
-
+    
     func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
         if tableView == positionsTableView {
             fcalc.markedPosition = row
@@ -702,7 +550,6 @@ extension ViewController: NSTableViewDataSource, NSTableViewDelegate, SettingsTa
     func newValueforKey(_ key: FCalc.SettingsTableKey, value: String?) {
         // wert aktualisieren
         fcalc.valueForKey(key, value: value)
-        
     }
     
     

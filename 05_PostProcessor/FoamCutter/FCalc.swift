@@ -23,16 +23,36 @@ import AppKit
 //   Usage: Generate an array of SettingsTableKey-values to be displayed and catch the content with the functions above
 //          all is handled with strings, so no need of type conversion
 //
+// - generate a new file
+//   newFile() -> Int                           =  0 if ok
+//                                             != 0 if not ok
 //
-// - Load a file. Supported filetypes
+// - load a file (fcf), including settings,....
+//   loadFromFile(_ file: String?) -> Int      =  0 if ok
+//                                             != 0 if not ok
+//
+// - save a file (fcf), including settings,....
+//   saveToFile(_ file: String?) -> Int        =  0 if ok
+//                                             != 0 if not ok
+//
+// - import a file, old content is keept for merging (only merged content can be saved)
+//   Supported filetypes
 //   gcode, nc: simple gcode wit G00/G0, G01, G1, G90, G91, ...
 //   how: Winghelper ICE export with absolute coordinates
-//   loadShapeFromFile(_ file: String) -> Int       =  0 if ok
-//                                                  != 0 if not ok
+//   fcf: Foam Cuter File previously saved
+//   importShapeFromFile(_ file: String?) -> Int      =  0 if ok
+//                                                    != 0 if not ok
 //
-// - Save a file in gcode format
-//   saveGCodeToFile(_ file: String) -> Int         =  0 if ok
-//                                                  != 0 if not ok
+// - merge content of two placements into one. rotation and x/z movement is discarded, only spacing is kept
+//   merge() -> Int                            =  0 if ok
+//                                             != 0 if not ok
+// - discard content, if content is kept for merging
+//   discard() -> Int                          =  0 if ok
+//                                             != 0 if not ok
+//
+// - export a file in gcode format
+//   exportGCodeToFile(_ file: String?) -> Int        =  0 if ok
+//                                                    != 0 if not ok
 // - Values / Coordinates:
 //   all coordinates are stored in an internal class-array.
 //   access is given with the index and a uniquie ID (see PositionTableKey)
@@ -53,13 +73,36 @@ import AppKit
 //   - updatePositionsTableView(_ atIndex: Int?)                                 called, wenn the table for the positions needs to be updated
 //   - updateSettingsTableView()                                                 called, wenn the table for the settings needs to be updated
 //   - updatePreview(_ node: SCNNode)                                            called, whenn the Graph is updated, check if Node is already linked
+// - Callbacks (FCalcMenuCallback):
 //
+// - Preview:
+//   A preveiw Scene Kit Node (SCNNode) is generated and updated with the updatePreview-Callback.
+//   If the node is linked once to the scene, no further actions are required (please do not relink the node to the scene.
+//   You can change the camera position with setCamera(_ direction: cameraDirection), 
+//   if allowsCameraControl is enabled for SCNView, you need to delete the user camera before calling setCamera. Do this by
+//   setting yourSCNView.pointOfView = nil.
+//   Functions:
+//   - play()
+//   - playPause()
+//   - pause()
+//   - stop()
 //
-//  TODOs:
-//  setCamera is not working, when the position is changes once manual
-//  add an additional shape (incl positioning and mirror)
-//  save a file including all settings / load a file
+///
+// ============================================================================================================================
+// HoC
 //
+// 2020-07-22   General:    First release and upload to github
+// 2020-07-24   General:    Store/load settings from registry
+//              Preview:    Set caamera to predefined poitions
+//              General:    Import/export functions renamed
+//              General:    Restructured Programm FCalc to App
+//              Parameter:  Simulation speed factor added
+//              Parameter:  Restructured in codable struct for load/save with json
+//              General:    Load/save/new added
+//              General:    Import and load allows a merge
+//              General:    Merging of two shapes / Discard of merge
+//
+
 protocol FCalcCallback {
     func updatePositionsTableView(_ atIndex: Int?)
     func updatePreview(_ node: SCNNode)
@@ -68,12 +111,15 @@ protocol FCalcCallback {
 
 
 class FCalc {
-    public var callback:    FCalcCallback?                              = nil
+    public var callback:        FCalcCallback?                              = nil
+     
+    
     public enum cameraDirection: Int {
         case front
         case top
         case left
         case right
+        case home
     }
     
     public enum SettingsTableKey: Int  {
@@ -114,14 +160,64 @@ class FCalc {
         case shapeMirror
         case shapeFlip
         
-        case chart
+        case preview
         case showCutterGraph
         case showAxisGraph
         case showBlockGraph
         case showShapeGraph
         case showShapeCutGraph
+        case simulationSpeed
         
         
+        var description : String {                          // String IDs for storing in Registry
+            switch self {
+            case .none:                     return "0"      // this must keept to 0 to check if values are stored
+            case .spacer:                   return "1"
+            case .cutter:                   return "2"
+            case .cutterWidth:              return "3"
+            case .cutterHeight:             return "4"
+            case .cutterDepth:              return "5"
+            case .labelX1Axis:              return "6"
+            case .labelY1Axis:              return "7"
+            case .labelX2Axis:              return "8"
+            case .labelY2Axis:              return "9"
+            case .gcodeDecimals:            return "10"
+            case .targetFeedSpeed:          return "11"
+            case .feedSpeedCorrection:      return "12"
+            case .maxFeedSpeed:             return "13"
+            case .fastPretravel:            return "14"
+            case .pretravelSpeed:           return "15"
+            case .hotwirePower:             return "16"
+            case .hotwirePreheat:           return "17"
+            
+            case .block:                    return "18"
+            case .blockWidth:               return "19"
+            case .blockHeight:              return "20"
+            case .blockDepth:               return "21"
+            case .blockSpacingLeft:         return "22"
+            case .blockSpacingFront:        return "23"
+            case .blockSpacingUnder:        return "24"
+            case .blockRotation:            return "25"
+                  
+            case .shape:                    return "26"
+            case .shapeWidth:               return "27"
+            case .shapeSpacingLeft:         return "28"
+            case .shapeRotation:            return "29"
+            case .shapeX:                   return "30"
+            case .shapeY:                   return "31"
+            case .shapeMirror:              return "32"
+            case .shapeFlip:                return "33"
+                  
+            case .preview:                  return "34"
+            case .showCutterGraph:          return "35"
+            case .showAxisGraph:            return "36"
+            case .showBlockGraph:           return "37"
+            case .showShapeGraph:           return "38"
+            case .showShapeCutGraph:        return "39"
+                
+            case .simulationSpeed:          return "40"
+            }
+        }
     }
     
     public enum PositionTableKey: Int  {
@@ -147,74 +243,148 @@ class FCalc {
     }
     
     
+    private let storeInReg:       [FCalc.SettingsTableKey]     =
+        [ .cutterWidth,
+          .cutterHeight,
+          .cutterDepth,
+          .labelX1Axis,
+          .labelY1Axis,
+          .labelX2Axis,
+          .labelY2Axis,
+          .gcodeDecimals,
+          .targetFeedSpeed,
+          .feedSpeedCorrection,
+          .maxFeedSpeed,
+          .fastPretravel,
+          .pretravelSpeed,
+          .hotwirePower,
+          .hotwirePreheat,
     
+          .blockWidth,
+          .blockHeight,
+          .blockDepth,
+          .blockSpacingLeft,
+          .blockSpacingFront,
+          .blockSpacingUnder,
+          .blockRotation,
+          
+          .shapeWidth,
+          .shapeSpacingLeft,
+          .shapeRotation,
+          //.shapeX,
+          //.shapeY,
+          //.shapeMirror,
+          //.shapeFlip,
+          
+          .showCutterGraph,
+          .showAxisGraph,
+          .showBlockGraph,
+          .showShapeGraph,
+          .showShapeCutGraph,
+            
+          .simulationSpeed
+        ]
+      
     public var      name:                       String?                 = nil
     public var      file:                       String?                 = nil
-    public var      allowedFileTypes                                    = ["how","gcode", "nc"]
+    public var      allowedImportFileTypes                              = ["how","gcode", "nc", "fcf"]
+    public var      allowedLoadFileTypes                                = ["fcf"]
     
-    // Achsenlabels für GCode export
-    private var     labelX1Axis:                String                  = "X"
-    private var     labelY1Axis:                String                  = "Y"
-    private var     labelX2Axis:                String                  = "U"
-    private var     labelY2Axis:                String                  = "Z"
-
-    private var     gcodeDecimals:              UInt                    = 2
-    
-    // Cutter Dimension
-    private var     cutterWidth:                Double                  = 721.0
-    private var     cutterHeight:               Double                  = 220.0
-    private var     cutterDepth:                Double                  = 350.0
-    
-    
-    // Foam Block Dimensions
-    private var     blockWidth:                 Double                  = 500.0
-    private var     blockHeight:                Double                  = 100.0
-    private var     blockDepth:                 Double                  = 100.0
-    
-    // Foam Block Position
-    private var     blockSpacingLeft:           Double                  = 100.0
-    private var     blockSpacingFront:          Double                  = 0.0
-    private var     blockSpacingUnder:          Double                  = 0.0
-    private var     blockRotation:              Double                  = 0.0
-    
-    // Shape Position Correction
-    private var     shapeWidth:                 Double                  = 500.0
-    private var     shapeSpacingLeft:           Double                  = 100.0
-    private var     shapeRotation:              Double                  = 0.0
-    private var     shapeX:                     Double                  = 0.0
-    private var     shapeY:                     Double                  = 0.0
-    private var     shapeMirror:                Bool                    = false
-    private var     shapeFlip:                  Bool                    = false
-    // Hotwire and Speed Adjustment
-    private var     targetFeedSpeed:            UInt                    = 300   // mm/min
-    private var     feedSpeedCorrection:        Bool                    = true
-    private var     maxFeedSpeed:               UInt                    = 1500  // mm/min
-    private var     hotwirePower:               UInt                    = 90    // in %
-    private var     hotwirePreheat:             UInt                    = 5
-    private var     fastPretravel:              Bool                    = true
-    private var     pretravelSpeed:             UInt                    = 1000  // mm/min
-    
+    private class FCalcData: Codable {
+        // Achsenlabels für GCode export
+        var         labelX1Axis:                String                  = "X"
+        var         labelY1Axis:                String                  = "Y"
+        var         labelX2Axis:                String                  = "U"
+        var         labelY2Axis:                String                  = "Z"
+        var         gcodeDecimals:              UInt                    = 2
+        // Cutter Dimension
+        var         cutterWidth:                Double                  = 721.0
+        var         cutterHeight:               Double                  = 220.0
+        var         cutterDepth:                Double                  = 350.0
+         // Foam Block Dimensions
+        var         blockWidth:                 Double                  = 500.0
+        var         blockHeight:                Double                  = 100.0
+        var         blockDepth:                 Double                  = 100.0
+        // Foam Block Position
+        var         blockSpacingLeft:           Double                  = 100.0
+        var         blockSpacingFront:          Double                  = 0.0
+        var         blockSpacingUnder:          Double                  = 0.0
+        var         blockRotation:              Double                  = 0.0
+        // Shape Position Correction
+        var         shapeWidth:                 Double                  = 500.0
+        var         shapeSpacingLeft:           Double                  = 100.0
+        var         shapeRotation:              Double                  = 0.0
+        var         shapeX:                     Double                  = 0.0
+        var         shapeY:                     Double                  = 0.0
+        var         shapeMirror:                Bool                    = false
+        var         shapeFlip:                  Bool                    = false
+        // Hotwire and Speed Adjustment
+        var         targetFeedSpeed:            UInt                    = 300   // mm/min
+        var         feedSpeedCorrection:        Bool                    = true
+        var         maxFeedSpeed:               UInt                    = 1500  // mm/min
+        var         hotwirePower:               UInt                    = 90    // in %
+        var         hotwirePreheat:             UInt                    = 5
+        var         fastPretravel:              Bool                    = true
+        var         pretravelSpeed:             UInt                    = 1000  // mm/min
+        
+        var         positions:                  [CuttingPosition]       = Array()
+        
+        public func copy() -> FCalcData {
+            let new                     = FCalcData()
+            new.labelX1Axis             = self.labelX1Axis
+            new.labelY1Axis             = self.labelY1Axis
+            new.labelX2Axis             = self.labelX2Axis
+            new.labelY2Axis             = self.labelY2Axis
+            new.gcodeDecimals           = self.gcodeDecimals
+            // Cutter Dimension
+            new.cutterWidth             = self.cutterWidth
+            new.cutterHeight            = self.cutterHeight
+            new.cutterDepth             = self.cutterDepth
+             // Foam Block Dimensions
+            new.blockWidth              = self.blockWidth
+            new.blockHeight             = self.blockHeight
+            new.blockDepth              = self.blockDepth
+            // Foam Block Position
+            new.blockSpacingLeft        = self.blockSpacingLeft
+            new.blockSpacingFront       = self.blockSpacingFront
+            new.blockSpacingUnder       = self.blockSpacingUnder
+            new.blockRotation           = self.blockRotation
+            // Shape Position Correction
+            new.shapeWidth              = self.shapeWidth
+            new.shapeSpacingLeft        = self.shapeSpacingLeft
+            new.shapeRotation           = self.shapeRotation
+            new.shapeX                  = self.shapeX
+            new.shapeY                  = self.shapeY
+            new.shapeMirror             = self.shapeMirror
+            new.shapeFlip               = self.shapeFlip
+            // Hotwire and Speed Adjustment
+            new.targetFeedSpeed         = self.targetFeedSpeed
+            new.feedSpeedCorrection     = self.feedSpeedCorrection
+            new.maxFeedSpeed            = self.maxFeedSpeed
+            new.hotwirePower            = self.hotwirePower
+            new.hotwirePreheat          = self.hotwirePreheat
+            new.fastPretravel           = self.fastPretravel
+            new.pretravelSpeed          = self.pretravelSpeed
+            
+            new.positions               = self.positions
+            return new
+        }
+        
+    }
+    private var data:                           FCalcData               = FCalcData()
+    private var mergingData:                    FCalcData?              = nil
      
-    // Parameter für die Darstellung als Graphen
-    private var     axisColor:                  NSColor                 = NSColor.orange.withAlphaComponent(0.4)
-    private var     axisColorHotwire:           NSColor                 = NSColor.orange
-    private var     axisColorAlert:             NSColor                 = NSColor.red
-    private var     shapeColor:                 NSColor                 = NSColor.blue.withAlphaComponent(0.4)
-    private var     shapeColorHotwire:          NSColor                 = NSColor.blue
-    private var     blockColor:                 NSColor                 = NSColor.black
-    private var     cutterColor:                NSColor                 = NSColor.gray
-    private var     wireColor:                  NSColor                 = NSColor.red
-    
+        
     private var     showAxisGraph:              Bool                    = false
     private var     showShapeGraph:             Bool                    = true
     private var     showCutterGraph:            Bool                    = true
     private var     showBlockGraph:             Bool                    = true
     private var     showShapeCutGraph:          Bool                    = true
-    
-    // die Graphen für Charts Scatterplot
+    private var     simulationSpeed:            Double                  = 10.0
+        
+    // Scene Nodes for Preview
     private var previewNode:                    SCNNode                 = SCNNode()
     private var cameraNode:                     SCNNode                 = SCNNode()
-    
     private var blockNode:                      SCNNode                 = SCNNode()
     private var cutterNode:                     SCNNode                 = SCNNode()
     private var shapeNode:                      SCNNode                 = SCNNode()
@@ -222,12 +392,25 @@ class FCalc {
     private var axisNode:                       SCNNode                 = SCNNode()
     private var wireNode:                       SCNNode                 = SCNNode()
     private var simulationTimer:                Timer?                  = nil
-
+    private var mergingShapeNode:               SCNNode                 = SCNNode()
+    private var mergingShapeCutNode:            SCNNode                 = SCNNode()
+    
+    // Colors for Preview
+    private var     axisColor:                  NSColor                 = NSColor.orange.withAlphaComponent(0.4)
+    private var     axisColorHotwire:           NSColor                 = NSColor.orange
+    private var     axisColorAlert:             NSColor                 = NSColor.red
+    private var     shapeColor:                 NSColor                 = NSColor.blue.withAlphaComponent(0.4)
+    private var     shapeColorHotwire:          NSColor                 = NSColor.blue
+    private var     mergingShapeColor:          NSColor                 = NSColor.green.withAlphaComponent(0.4)
+    private var     mergingShapeColorHotwire:   NSColor                 = NSColor.green
+    private var     blockColor:                 NSColor                 = NSColor.black
+    private var     cutterColor:                NSColor                 = NSColor.gray
+    private var     wireColor:                  NSColor                 = NSColor.red
+    
     // hierin liegen die eigentlichen Daten
-    private var positions:                      [CuttingPosition]       = Array()
     public var numberOfPositions:               Int {
         get {
-            return positions.count
+            return data.positions.count
         }
         set {
             
@@ -239,16 +422,14 @@ class FCalc {
         }
     }
     
-    
-    
         
-    private class CuttingPosition {
-        var x1Shape:                    Double                 = 0.0       // die originalen Shape daten
-        var y1Shape:                    Double                 = 0.0
-        var w1Shape:                    Double                 = 0.0
-        var x2Shape:                    Double                 = 0.0
-        var y2Shape:                    Double                 = 0.0
-        var w2Shape:                    Double                 = 0.0
+    private class CuttingPosition : Codable {
+        var x1Shape:                    Double                  = 0.0       // die originalen Shape daten
+        var y1Shape:                    Double                  = 0.0
+        var w1Shape:                    Double                  = 0.0
+        var x2Shape:                    Double                  = 0.0
+        var y2Shape:                    Double                  = 0.0
+        var w2Shape:                    Double                  = 0.0
         
         var x1Axis:                     Double                  = 0.0       // die Achsenpositionen... wird berechnet
         var y1Axis:                     Double                  = 0.0
@@ -262,38 +443,79 @@ class FCalc {
         var y2Block:                    Double                  = 0.0
         var w2Block:                    Double                  = 0.0
         
-        
         var hotwire:                    Bool                    = true
         var pretravel:                  Bool                    = false
         var feedSpeed:                  Double?                 = nil
     
-        var added:                      Bool                    = false
-        
         var gcode:                      String                  = ""
+        
+        public func copy() -> CuttingPosition {
+            let new             = CuttingPosition()
+            new.x1Shape         = self.x1Shape
+            new.y1Shape         = self.y1Shape
+            new.w1Shape         = self.w1Shape
+            new.x2Shape         = self.x2Shape
+            new.y2Shape         = self.y2Shape
+            new.w2Shape         = self.w2Shape
+            
+            new.x1Axis          = self.x1Axis
+            new.y1Axis          = self.y1Axis
+            new.x2Axis          = self.x2Axis
+            new.y2Axis          = self.y2Axis
+            
+            new.x1Block         = self.x1Block
+            new.y1Block         = self.y1Block
+            new.w1Block         = self.w1Block
+            new.x2Block         = self.x2Block
+            new.y2Block         = self.y2Block
+            new.w2Block         = self.w2Block
+                
+            new.hotwire         = self.hotwire
+            new.pretravel       = self.pretravel
+            new.feedSpeed       = self.feedSpeed
+            
+            new.gcode           = self.gcode
+            return new
+        }
     }
-    public func loadShapeFromFile(_ file: String) -> Int {
-        return loadShapeFromFile(file, add: false)
+    
+    init() {
+        loadReg()
+        initShape()
+        _ = initializeGraph()
+        _ = generatePreview()
     }
-    public func addShapeFromFile(_ file: String, index: Int? = nil) -> Int {
-        let index = index ?? positions.count
-        return loadShapeFromFile(file, add: true, index: index)
-    }
+    // MARK: - Import / Export
     private func initShape() {
-        positions.removeAll()
+        data.positions.removeAll()
         
         // Shapeverschiebung löschen
-        shapeX                          = 0.0
-        shapeY                          = 0.0
-        shapeRotation                   = 0.0
-        shapeMirror                     = false
-        shapeFlip                       = false
-        blockRotation                   = 0.0
+        data.shapeX                 = 0.0
+        data.shapeY                 = 0.0
+        data.shapeRotation          = 0.0
+        data.shapeMirror            = false
+        data.shapeFlip              = false
+        data.blockRotation          = 0.0
         
         stop()      // stop the simulation
         
         requestUpdateSettingsTable()
     }
-    private func loadShapeFromFile(_ file: String, add: Bool = false, index: Int = 0) -> Int {
+    public func importShapeFromFile(_ file: String?) -> Int {
+        guard let file = file else {
+            return -1;
+        }
+        
+        
+        let fileExt     = URL(fileURLWithPath: file).pathExtension
+        
+        if (fileExt == "FCF") || (fileExt == "fcf") {
+            // If you try to import a foamcutter file, handle it as you would import it in addition
+            return loadFromFile(file, withMerge: true)
+        }
+        
+        
+        
         
         //read text file line by line
         errno = 0
@@ -301,25 +523,18 @@ class FCalc {
             perror(file)
             return -1
         }
-        var index = index
-        if index > positions.count {
-            index = positions.count
-        }
         
-        var add = add
-        if positions.count == 0 {
-            add = false
+        mergingData = nil
+        if data.positions.count > 0 {
+            // data can be merged...
+            // save original data
+            mergingData = data.copy() as FCalcData
         }
-        
-        if add == false {       // only for first file
+        if self.file == nil {
             self.file       = file      // store filename incl path
             self.name       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
-            initShape()
-        } else {
-            // ToDo hier die inits für das add machen
         }
-        
-        let fileExt     = URL(fileURLWithPath: file).pathExtension
+        initShape()
         
         
         if (fileExt == "HOW") || (fileExt == "how") {
@@ -337,10 +552,7 @@ class FCalc {
                                  w1: 0.0,
                                  x2: u,
                                  y2: z,
-                                 w2: shapeWidth,
-                                 index: index,
-                                 add: add)
-                    index += 1
+                                 w2: data.shapeWidth)
                 }
             }
             NSLog("File geladen: " + (self.name ?? ""))
@@ -522,10 +734,7 @@ class FCalc {
                                      w1: 0.0,
                                      x2: u,
                                      y2: z,
-                                     w2: shapeWidth,
-                                     index: index,
-                                     add: add)
-                        index += 1
+                                     w2: data.shapeWidth)
                     }
                     
                 }
@@ -538,7 +747,7 @@ class FCalc {
         // alles neu berechnen
         _ = calculateShape()
         // graph aufbauen
-        _ = generateGraph()
+        _ = generatePreview()
         return 0
     }
     
@@ -548,9 +757,7 @@ class FCalc {
                                w1:       Double,
                                x2:       Double,
                                y2:       Double,
-                               w2:       Double,
-                               index:   Int         = 0,
-                               add:     Bool        = false) {
+                               w2:       Double) {
         
         let position:       CuttingPosition         = CuttingPosition()
         position.x1Shape     = x1
@@ -559,426 +766,14 @@ class FCalc {
         position.x2Shape     = x2
         position.y2Shape     = y2
         position.w2Shape     = w2
-        position.added       = add
         
-        positions.insert(position, at: index)
+        data.positions.append(position)
     }
-    private func moveShape(_ x: Double, _ y: Double) {
-        for position in positions {
-            position.x1Shape    +=  x
-            position.x2Shape    +=  x
-            position.y1Shape    +=  y
-            position.y2Shape    +=  y
-        }
-    }
-    private func mirrorShape() {
-        var mem: Double
-        var minW: Double        = positions.first?.w1Shape  ?? 0.0
-        var maxW: Double        = positions.first?.w1Shape  ?? 0.0
-        for position in positions {
-            if position.w1Shape > maxW        { maxW = position.w1Shape }
-            if position.w2Shape > maxW        { maxW = position.w2Shape }
-            if position.w1Shape < minW        { minW = position.w1Shape }
-            if position.w2Shape < minW        { minW = position.w2Shape }
-        }
-        
-        for position in positions {
-            mem                 = position.x1Shape
-            position.x1Shape    = position.x2Shape
-            position.x2Shape    = mem
-            mem                 = position.y1Shape
-            position.y1Shape    = position.y2Shape
-            position.y2Shape    = mem
-            
-            mem                 = position.w1Shape
-            position.w1Shape    = maxW - position.w2Shape + minW
-            position.w2Shape    = maxW - (mem - minW)
-        }
-    }
-    private func flipShape() {
-        var mem: Double
-        var minX: Double        = positions.first?.x1Shape  ?? 0.0
-        var minY: Double        = positions.first?.y1Shape  ?? 0.0
-        var maxX: Double        = positions.first?.x1Shape  ?? 0.0
-        var maxY: Double        = positions.first?.y1Shape  ?? 0.0
-        
-        // find min and max dimensions
-        for position in positions {
-            if position.x1Shape > maxX        { maxX = position.x1Shape }
-            if position.x2Shape > maxX        { maxX = position.x2Shape }
-            if position.y1Shape > maxY        { maxY = position.y1Shape }
-            if position.y2Shape > maxY        { maxY = position.y2Shape }
-            if position.x1Shape < minX        { minX = position.x1Shape }
-            if position.x2Shape < minX        { minX = position.x2Shape }
-            if position.y1Shape < minY        { minY = position.y1Shape }
-            if position.y2Shape < minY        { minY = position.y2Shape }
-        }
-        
-        // flipp and store into new array reverse sorted
-        var flippedPositions: [CuttingPosition] = []
-        for position in positions {
-            mem                 = maxX - position.x1Shape
-            position.x1Shape    = minX + mem
-            mem                 = maxX - position.x2Shape
-            position.x2Shape    = minX + mem
-            mem                 = maxY - position.y1Shape
-            position.y1Shape    = minY + mem
-            mem                 = maxY - position.y2Shape
-            position.y2Shape    = minY + mem
-            
-            flippedPositions.insert(position, at: 0)
-        }
-        
-        // remove old positions
-        positions.removeAll()       // TODO keep added/pretravel,... in mind
-        
-        // add the flipped positions
-        positions   += flippedPositions
-        
-    }
-    private func calculateShape() -> Int {
-         
-        guard positions.count > 0 else {
-            NSLog("Keine Daten vorhanden")
-            
+    public func exportGCodeToFile(_ file: String?) -> Int {
+        guard let file = file else {
             return -1;
         }
-        
-        var lastPosition : CuttingPosition? = nil
-        for position in positions {
-            calculatePosition(position, lastPosition: lastPosition)
-            lastPosition    = position
-        }
-        // Aktualisierungs-Callback aufrufen
-        requestUpdatePositionsTable(nil)
-        return 0;
-    }
-    private func calculatePosition(_ position: CuttingPosition, source: PositionTableKey = .x1Shape, lastPosition: CuttingPosition? = nil) {
-        var left:                       Double      = 0.0
-        var right:                      Double      = 0.0
-        var delta:                      Double      = 0.0
-        
-        
-        if (source == .x1Shape) || (source == .y1Shape) || (source == .x2Shape) || (source == .y2Shape) {
-      
-            
-            // still under construction with the add functions
-            
-            
-            /*
-            shapeOffset     = self.shapeX
-            if position.pretravel {
-                shapeOffset = 0.0
-            }
-            if position.added {
-                shapeOffset = 0.0
-            }
-            */
-            
-            
-            position.x1Block = position.x1Shape * cos(-shapeRotation)
-                             - position.w1Shape * sin(-shapeRotation)
-                             + self.shapeX
-            
-            position.w1Block = position.x1Shape * sin(-shapeRotation)
-                             + position.w1Shape * cos(-shapeRotation)
-                             + self.shapeSpacingLeft
-            
-            position.y1Block = position.y1Shape
-                             + self.shapeY
-             
-            position.x2Block = position.x2Shape * cos(-shapeRotation)
-                             - position.w2Shape * sin(-shapeRotation)
-                             + self.shapeX
-             
-            position.w2Block = position.x2Shape * sin(-shapeRotation)
-                             + position.w2Shape * cos(-shapeRotation)
-                             + self.shapeSpacingLeft
-             
-            position.y2Block = position.y2Shape
-                             + self.shapeY
-            
-                
-            delta               = (position.x2Block - position.x1Block) / (position.w2Block - position.w1Block)     // berechne die steigung
-            right               = cutterWidth - position.w2Block
-            left                = position.w1Block
-            position.x1Axis     = (position.x1Block) - (delta * left)        // berechne die x1Achse
-            position.x2Axis     = (position.x2Block) + (delta * right)       // berechne die x2Achse
-            delta               = (position.y2Block - position.y1Block) / (position.w2Block - position.w1Block)     // berechne die steigung
-            position.y1Axis     = (position.y1Block) - (delta * left)        // berechne die x1Achse
-            position.y2Axis     = (position.y2Block) + (delta * right)       // berechne die x2Achse
-             
-        } else if (source == .x1Axis) || (source == .y1Axis) || (source == .x2Axis) || (source == .y2Axis) {
-            
-            delta               = (position.y2Axis - position.y1Axis) / cutterWidth    // berechne die steigung
-            right               = cutterWidth - position.w2Block
-            left                = position.w1Block
-            position.y1Block    = position.y1Axis    + (delta * left)        // berechne die y1Achse
-            position.y2Block    = position.y2Axis    - (delta * right)       // berechne die y2Achse
-            
-            delta               = (position.x2Axis - position.x1Axis) / cutterWidth    // berechne die steigung
-            right               = cutterWidth - position.w2Block
-            left                = position.w1Block
-            position.x1Block    = position.x1Axis    + (delta * left)        // berechne die x1Achse
-            position.x2Block    = position.x2Axis    - (delta * right)       // berechne die x2Achse
-            
-            
-            position.y1Shape    = position.y1Block
-                                - self.shapeY
-            position.y2Shape    = position.y2Block
-                                - self.shapeY
-            
-            var x:  Double      = 0.0
-            var w:  Double      = 0.0
-            
-            x                   = position.x1Block - self.shapeX
-            w                   = position.w1Block - self.shapeSpacingLeft
-            position.x1Shape = x * cos(shapeRotation)
-                             - w * sin(shapeRotation)
-            position.w1Shape = x * sin(shapeRotation)
-                             + w * cos(shapeRotation)
-             
-            x                   = position.x2Block - self.shapeX
-            w                   = position.w2Block - self.shapeSpacingLeft
-            position.x2Shape = x * cos(shapeRotation)
-                             - w * sin(shapeRotation)
-            position.w2Shape = x * sin(shapeRotation)
-                             + w * cos(shapeRotation)
-            
-        }
-        
-        // berechne die bearbeitungsgeschwindigkeit
-        var calcFeedSpeed:      Double = Double(targetFeedSpeed)
-        if let lastPosition = lastPosition {
-            // berechne die Strecke am Block und an der Achse
-            var dBlock:         Double = 0
-            var dAxis:          Double = 0
-            var dSpeed:         Double = 1
-            
-            
-            dBlock       = (position.x1Block - lastPosition.x1Block) * (position.x1Block - lastPosition.x1Block)
-            dBlock      += (position.y1Block - lastPosition.y1Block) * (position.y1Block - lastPosition.y1Block)
-            dBlock      += (position.w1Block - lastPosition.w1Block) * (position.w1Block - lastPosition.w1Block)
-            dBlock       = sqrt(dBlock)
-            
-            dAxis        = (position.x1Axis - lastPosition.x1Axis) * (position.x1Axis - lastPosition.x1Axis)
-            dAxis       += (position.y1Axis - lastPosition.y1Axis) * (position.y1Axis - lastPosition.y1Axis)
-            dAxis        = sqrt(dAxis)
-            
-            // Ermittle das Verhältnis von Block zu Achse
-            dSpeed       = dAxis / dBlock
-            
-            dBlock       = (position.x2Block - lastPosition.x2Block) * (position.x2Block - lastPosition.x2Block)
-            dBlock      += (position.y2Block - lastPosition.y1Block) * (position.y2Block - lastPosition.y2Block)
-            dBlock      += (position.w2Block - lastPosition.w2Block) * (position.w2Block - lastPosition.w2Block)
-            dBlock       = sqrt(dBlock)
-             
-            dAxis        = (position.x2Axis - lastPosition.x2Axis) * (position.x2Axis - lastPosition.x2Axis)
-            dAxis       += (position.y2Axis - lastPosition.y2Axis) * (position.y2Axis - lastPosition.y2Axis)
-            dAxis        = sqrt(dAxis)
-            
-            if dSpeed < (dAxis / dBlock) {
-                dSpeed   = dAxis / dBlock
-            }
-            
-            if dSpeed.isInfinite {
-                calcFeedSpeed   = Double(maxFeedSpeed)
-            } else if dSpeed.isNaN {
-                calcFeedSpeed   = Double(targetFeedSpeed)
-            }  else if dSpeed <= 0.0 {
-                calcFeedSpeed   = Double(targetFeedSpeed)
-            } else {
-                calcFeedSpeed  = dSpeed * Double(targetFeedSpeed)
-            }
-        }
-        
-        position.feedSpeed      = calcFeedSpeed
-        if fastPretravel == true,
-            position.pretravel == true {
-            position.feedSpeed      = Double(pretravelSpeed)
-        }
-        if let speed = position.feedSpeed {
-            if speed > Double(maxFeedSpeed) {
-                position.feedSpeed      = Double(maxFeedSpeed)
-            }
-        } else {
-            position.feedSpeed      = Double(targetFeedSpeed)
-        }
-        
-    }
-    init() {
-        _ = initializeGraph()
-        _ = generateGraph()
-    }
-    
-    private func initializeGraph() -> Int {
-        cameraNode                  = SCNNode()
-        cameraNode.camera           = SCNCamera()
-        cameraNode.camera!.zFar     = (max(cutterWidth, cutterHeight) + cutterDepth) * 3;
-        cameraNode.camera!.zNear    = 5.0;
-        
-        // mittig
-        cameraNode.position         = SCNVector3(x: CGFloat(cutterWidth * 0.5),
-                                                 y: 0,
-                                                 z: CGFloat(cameraNode.camera!.zFar / 2))
-        cameraNode.eulerAngles      = SCNVector3(x: .pi * 0.0,
-                                                 y: .pi * 0.0,
-                                                 z: .pi * 0.0)
-        previewNode.addChildNode(cameraNode)
-        
-        previewNode.light           = SCNLight()
-        previewNode.light!.type = .ambient
-        previewNode.light!.color = NSColor(white: 0.67, alpha: 1.0)
-        
-        return 0
-    }
-    public func setCamera(_ direction: cameraDirection = .front) {
-        switch (direction) {
-        case .top:
-            cameraNode.position = SCNVector3(x: CGFloat(cutterWidth * 0.5),
-                                             y: CGFloat(cameraNode.camera!.zFar * 0.5 + cutterHeight),
-                                             z: 0)
-            cameraNode.eulerAngles      = SCNVector3(x: .pi * -0.5,
-                                                     y: .pi * 0.0,
-                                                     z: .pi * 0.0)
-            break
-        case .left:
-            cameraNode.position = SCNVector3(x: CGFloat(cameraNode.camera!.zFar * -0.5),
-                                             y: 0,
-                                             z: CGFloat(cutterDepth * -0.5))
-            cameraNode.eulerAngles      = SCNVector3(x: .pi * 0.0,
-                                                     y: .pi * -0.5,
-                                                     z: .pi * 0.0)
-            break
-        case .right:
-            cameraNode.position = SCNVector3(x: CGFloat(cameraNode.camera!.zFar * 0.5 + cutterWidth),
-                                             y: 0,
-                                             z: CGFloat(cutterDepth * -0.5))
-            cameraNode.eulerAngles      = SCNVector3(x: .pi * 0.0,
-                                                     y: .pi * 0.5,
-                                                     z: .pi * 0.0)
-            break
-        default:
-            cameraNode.position = SCNVector3(x: CGFloat(cutterWidth * 0.5),
-                                             y: 0,
-                                             z: CGFloat(cameraNode.camera!.zFar * 0.5))
-            cameraNode.eulerAngles      = SCNVector3(x: .pi * 0.0,
-                                                     y: .pi * 0.0,
-                                                     z: .pi * 0.0)
-            break
-            
-        }
-    }
-    
-    
-    private func generateGraph() -> Int {
-        defer {
-            if let f = callback?.updatePreview(_:) {
-                f(previewNode)
-            }
-        }
-        
-        blockNode.removeFromParentNode()
-        cutterNode.removeFromParentNode()
-        shapeNode.removeFromParentNode()
-        shapeCutNode.removeFromParentNode()
-        axisNode.removeFromParentNode()
-        stop()      // stop the simulation
-        
-        blockNode       = generateFoamBlockeNode(x: blockSpacingFront,
-                                                     y: blockSpacingUnder,
-                                                     w: blockSpacingLeft,
-                                                     depth: blockDepth,
-                                                     height: blockHeight,
-                                                     width: blockWidth,
-                                                     rotationY: blockRotation,
-                                                     color: blockColor,
-                                                     edgeColor: blockColor)
-        blockNode.isHidden       = !self.showBlockGraph
-        previewNode.addChildNode(blockNode)
-        
-        cutterNode           = generateCutterNode(depth:        cutterDepth,
-                                                  height:       cutterHeight,
-                                                  width:        cutterWidth,
-                                                  color:        cutterColor,
-                                                  edgeColor:    cutterColor)
-        cutterNode.isHidden  = !self.showCutterGraph
-        previewNode.addChildNode(cutterNode)
-                
-        
-        shapeNode            = generateShapeNode()
-        shapeNode.isHidden   = !self.showShapeGraph
-        previewNode.addChildNode(shapeNode)
-        
-        shapeCutNode         = generateShapeCutNode()
-        shapeCutNode.isHidden   = !self.showShapeCutGraph
-        previewNode.addChildNode(shapeCutNode)
-        
-        axisNode             = generateAxisNode()
-        axisNode.isHidden    = !self.showAxisGraph
-        previewNode.addChildNode(axisNode)
-        
-        guard positions.count > 0 else {
-            NSLog("Keine Daten vorhanden")
-            return -1;
-        }
-        
-        return 0
-    }
-    
-    func sin(_ degrees: Double) -> Double {
-        return __sinpi(degrees/180.0)
-    }
-    func cos(_ degrees: Double) -> Double {
-        return __cospi(degrees/180.0)
-    }
-    
-    private func generateGCode() -> Int {
-        guard positions.count > 0 else {
-            NSLog("Keine Daten vorhanden")
-            return -1;
-        }
-                
-        var hotwire         = false
-        var pretravelSpeed  = self.pretravelSpeed
-        var targetFeedSpeed = self.targetFeedSpeed
-        if pretravelSpeed > self.maxFeedSpeed {
-            pretravelSpeed = self.maxFeedSpeed
-        }
-        if targetFeedSpeed > self.maxFeedSpeed {
-            targetFeedSpeed = self.maxFeedSpeed
-        }
-        
-        for position in positions {
-            // erzeuge den G-Code
-            position.gcode = ""
-            if hotwire != position.hotwire {
-                hotwire = position.hotwire
-                if hotwire {            // hotwire wird eingeschalten
-                    position.gcode += "G4P1\nM3\n"
-                    position.gcode += "G4P" + String(hotwirePreheat) + "\n"      // Preheat für Hotwire
-                } else {                // hotwire ausschalten
-                    position.gcode += "G4P1\nM5\n"
-                }
-            }
-            position.gcode              += "G1"
-                
-            if let feedSpeed = position.feedSpeed {
-                position.gcode      += "F"        + dtos(feedSpeed, decimals: 0)
-            } else {
-                position.gcode      += "F"        + dtos(Double(targetFeedSpeed), decimals: 0)
-            }
-            
-            position.gcode              += labelX1Axis + dtos(position.x1Axis, decimals: gcodeDecimals)
-                                        +  labelY1Axis + dtos(position.y1Axis, decimals: gcodeDecimals)
-                                        +  labelX2Axis + dtos(position.x2Axis, decimals: gcodeDecimals)
-                                        +  labelY2Axis + dtos(position.y2Axis, decimals: gcodeDecimals)
-        }
-        return 0
-    }
-    
-    public func saveGCodeToFile(_ file: String) -> Int {
-        guard positions.count > 0 else {
+        guard data.positions.count > 0 else {
             NSLog("Keine Daten vorhanden")
             return -1;
         }
@@ -1016,14 +811,14 @@ class FCalc {
         info = "G90F" + valueForKey(.targetFeedSpeed) + "S" + valueForKey(.hotwirePower);                   writeLine(info, toFile: file)
         
         // initiales Hotwire on / off
-        if positions.first?.hotwire ?? false {
-            info = "G4P1\nM3\nG4P" + String(hotwirePreheat)
+        if data.positions.first?.hotwire ?? false {
+            info = "G4P1\nM3\nG4P" + String(data.hotwirePreheat)
         } else {
             info = "G4P1\nM5"
         }
         writeLine(info, toFile: file)
         
-        for position in positions {
+        for position in data.positions {
             writeLine(position.gcode, toFile: file)
         }
         // Hotwire am Ende ausschalten
@@ -1032,6 +827,49 @@ class FCalc {
          
         
         NSLog("File exportiert: " + (self.name ?? ""))
+        return 0
+    }
+    private func generateGCode() -> Int {
+        guard data.positions.count > 0 else {
+            NSLog("Keine Daten vorhanden")
+            return -1;
+        }
+                
+        var hotwire         = false
+        var pretravelSpeed  = data.pretravelSpeed
+        var targetFeedSpeed = data.targetFeedSpeed
+        if pretravelSpeed > data.maxFeedSpeed {
+            pretravelSpeed = data.maxFeedSpeed
+        }
+        if targetFeedSpeed > data.maxFeedSpeed {
+            targetFeedSpeed = data.maxFeedSpeed
+        }
+        
+        for position in data.positions {
+            // erzeuge den G-Code
+            position.gcode = ""
+            if hotwire != position.hotwire {
+                hotwire = position.hotwire
+                if hotwire {            // hotwire wird eingeschalten
+                    position.gcode += "G4P1\nM3\n"
+                    position.gcode += "G4P" + String(data.hotwirePreheat) + "\n"      // Preheat für Hotwire
+                } else {                // hotwire ausschalten
+                    position.gcode += "G4P1\nM5\n"
+                }
+            }
+            position.gcode              += "G1"
+                
+            if let feedSpeed = position.feedSpeed {
+                position.gcode      += "F"        + dtos(feedSpeed, decimals: 0)
+            } else {
+                position.gcode      += "F"        + dtos(Double(targetFeedSpeed), decimals: 0)
+            }
+            
+            position.gcode              += data.labelX1Axis + dtos(position.x1Axis, decimals: data.gcodeDecimals)
+                                        +  data.labelY1Axis + dtos(position.y1Axis, decimals: data.gcodeDecimals)
+                                        +  data.labelX2Axis + dtos(position.x2Axis, decimals: data.gcodeDecimals)
+                                        +  data.labelY2Axis + dtos(position.y2Axis, decimals: data.gcodeDecimals)
+        }
         return 0
     }
     private func writeLine(_ line: String, toFile: String, firstLine: Bool = false) {
@@ -1045,6 +883,791 @@ class FCalc {
                        encoding: .utf8)
         }
     }
+    // MARK: - Transformation (Move/Flip/...)
+    private func moveShape(_ x: Double, _ y: Double) {
+        for position in data.positions {
+            position.x1Shape    +=  x
+            position.x2Shape    +=  x
+            position.y1Shape    +=  y
+            position.y2Shape    +=  y
+        }
+    }
+    private func mirrorShape() {
+        var mem: Double
+        var minW: Double        = data.positions.first?.w1Shape  ?? 0.0
+        var maxW: Double        = data.positions.first?.w1Shape  ?? 0.0
+        for position in data.positions {
+            if position.w1Shape > maxW        { maxW = position.w1Shape }
+            if position.w2Shape > maxW        { maxW = position.w2Shape }
+            if position.w1Shape < minW        { minW = position.w1Shape }
+            if position.w2Shape < minW        { minW = position.w2Shape }
+        }
+        
+        for position in data.positions {
+            mem                 = position.x1Shape
+            position.x1Shape    = position.x2Shape
+            position.x2Shape    = mem
+            mem                 = position.y1Shape
+            position.y1Shape    = position.y2Shape
+            position.y2Shape    = mem
+            
+            mem                 = position.w1Shape
+            position.w1Shape    = maxW - position.w2Shape + minW
+            position.w2Shape    = maxW - (mem - minW)
+        }
+    }
+    private func flipShape() {
+        var mem: Double
+        var minX: Double        = data.positions.first?.x1Shape  ?? 0.0
+        var minY: Double        = data.positions.first?.y1Shape  ?? 0.0
+        var maxX: Double        = data.positions.first?.x1Shape  ?? 0.0
+        var maxY: Double        = data.positions.first?.y1Shape  ?? 0.0
+        
+        // find min and max dimensions
+        for position in data.positions {
+            if position.x1Shape > maxX        { maxX = position.x1Shape }
+            if position.x2Shape > maxX        { maxX = position.x2Shape }
+            if position.y1Shape > maxY        { maxY = position.y1Shape }
+            if position.y2Shape > maxY        { maxY = position.y2Shape }
+            if position.x1Shape < minX        { minX = position.x1Shape }
+            if position.x2Shape < minX        { minX = position.x2Shape }
+            if position.y1Shape < minY        { minY = position.y1Shape }
+            if position.y2Shape < minY        { minY = position.y2Shape }
+        }
+        
+        // flipp and store into new array reverse sorted
+        var flippedPositions: [CuttingPosition] = []
+        for position in data.positions {
+            mem                 = maxX - position.x1Shape
+            position.x1Shape    = minX + mem
+            mem                 = maxX - position.x2Shape
+            position.x2Shape    = minX + mem
+            mem                 = maxY - position.y1Shape
+            position.y1Shape    = minY + mem
+            mem                 = maxY - position.y2Shape
+            position.y2Shape    = minY + mem
+            
+            flippedPositions.insert(position, at: 0)
+        }
+        
+        // remove old positions
+        data.positions.removeAll()       // TODO keep added/pretravel,... in mind
+        
+        // add the flipped positions
+        data.positions   += flippedPositions
+        
+    }
+    // MARK: - Shape calculation
+    private func calculateShape() -> Int {
+        defer {
+            // Aktualisierungs-Callback aufrufen
+            requestUpdatePositionsTable(nil)
+        }
+        guard data.positions.count > 0 else {
+            NSLog("Keine Daten vorhanden")
+            
+            return -1;
+        }
+        
+        var lastPosition : CuttingPosition? = nil
+        for position in data.positions {
+            calculatePosition(position, lastPosition: lastPosition)
+            lastPosition    = position
+        }
+        
+        return 0;
+    }
+    private func calculatePosition(_ position: CuttingPosition, source: PositionTableKey = .x1Shape, lastPosition: CuttingPosition? = nil) {
+        var left:                       Double      = 0.0
+        var right:                      Double      = 0.0
+        var delta:                      Double      = 0.0
+        
+        
+        if (source == .x1Shape) || (source == .y1Shape) || (source == .x2Shape) || (source == .y2Shape) {
+      
+            position.x1Block = position.x1Shape * cos(-data.shapeRotation)
+                             - position.w1Shape * sin(-data.shapeRotation)
+                             + data.shapeX
+            
+            position.w1Block = position.x1Shape * sin(-data.shapeRotation)
+                             + position.w1Shape * cos(-data.shapeRotation)
+                             + data.shapeSpacingLeft
+            
+            position.y1Block = position.y1Shape
+                             + data.shapeY
+             
+            position.x2Block = position.x2Shape * cos(-data.shapeRotation)
+                             - position.w2Shape * sin(-data.shapeRotation)
+                             + data.shapeX
+             
+            position.w2Block = position.x2Shape * sin(-data.shapeRotation)
+                             + position.w2Shape * cos(-data.shapeRotation)
+                             + data.shapeSpacingLeft
+             
+            position.y2Block = position.y2Shape
+                             + data.shapeY
+            
+                
+            delta               = (position.x2Block - position.x1Block) / (position.w2Block - position.w1Block)     // berechne die steigung
+            right               = data.cutterWidth - position.w2Block
+            left                = position.w1Block
+            position.x1Axis     = (position.x1Block) - (delta * left)        // berechne die x1Achse
+            position.x2Axis     = (position.x2Block) + (delta * right)       // berechne die x2Achse
+            delta               = (position.y2Block - position.y1Block) / (position.w2Block - position.w1Block)     // berechne die steigung
+            position.y1Axis     = (position.y1Block) - (delta * left)        // berechne die x1Achse
+            position.y2Axis     = (position.y2Block) + (delta * right)       // berechne die x2Achse
+             
+        } else if (source == .x1Axis) || (source == .y1Axis) || (source == .x2Axis) || (source == .y2Axis) {
+            
+            delta               = (position.y2Axis - position.y1Axis) / data.cutterWidth    // berechne die steigung
+            right               = data.cutterWidth - position.w2Block
+            left                = position.w1Block
+            position.y1Block    = position.y1Axis    + (delta * left)        // berechne die y1Achse
+            position.y2Block    = position.y2Axis    - (delta * right)       // berechne die y2Achse
+            
+            delta               = (position.x2Axis - position.x1Axis) / data.cutterWidth    // berechne die steigung
+            right               = data.cutterWidth - position.w2Block
+            left                = position.w1Block
+            position.x1Block    = position.x1Axis    + (delta * left)        // berechne die x1Achse
+            position.x2Block    = position.x2Axis    - (delta * right)       // berechne die x2Achse
+            
+            
+            position.y1Shape    = position.y1Block
+                                - data.shapeY
+            position.y2Shape    = position.y2Block
+                                - data.shapeY
+            
+            var x:  Double      = 0.0
+            var w:  Double      = 0.0
+            
+            x                   = position.x1Block - data.shapeX
+            w                   = position.w1Block - data.shapeSpacingLeft
+            position.x1Shape = x * cos(data.shapeRotation)
+                             - w * sin(data.shapeRotation)
+            position.w1Shape = x * sin(data.shapeRotation)
+                             + w * cos(data.shapeRotation)
+             
+            x                   = position.x2Block - data.shapeX
+            w                   = position.w2Block - data.shapeSpacingLeft
+            position.x2Shape = x * cos(data.shapeRotation)
+                             - w * sin(data.shapeRotation)
+            position.w2Shape = x * sin(data.shapeRotation)
+                             + w * cos(data.shapeRotation)
+            
+        }
+        
+        // berechne die bearbeitungsgeschwindigkeit
+        var calcFeedSpeed:      Double = Double(data.targetFeedSpeed)
+        if let lastPosition = lastPosition {
+            // berechne die Strecke am Block und an der Achse
+            var dBlock:         Double = 0
+            var dAxis:          Double = 0
+            var dSpeed:         Double = 1
+            
+            
+            dBlock       = (position.x1Block - lastPosition.x1Block) * (position.x1Block - lastPosition.x1Block)
+            dBlock      += (position.y1Block - lastPosition.y1Block) * (position.y1Block - lastPosition.y1Block)
+            dBlock      += (position.w1Block - lastPosition.w1Block) * (position.w1Block - lastPosition.w1Block)
+            dBlock       = sqrt(dBlock)
+            
+            dAxis        = (position.x1Axis - lastPosition.x1Axis) * (position.x1Axis - lastPosition.x1Axis)
+            dAxis       += (position.y1Axis - lastPosition.y1Axis) * (position.y1Axis - lastPosition.y1Axis)
+            dAxis        = sqrt(dAxis)
+            
+            // Ermittle das Verhältnis von Block zu Achse
+            dSpeed       = dAxis / dBlock
+            
+            dBlock       = (position.x2Block - lastPosition.x2Block) * (position.x2Block - lastPosition.x2Block)
+            dBlock      += (position.y2Block - lastPosition.y1Block) * (position.y2Block - lastPosition.y2Block)
+            dBlock      += (position.w2Block - lastPosition.w2Block) * (position.w2Block - lastPosition.w2Block)
+            dBlock       = sqrt(dBlock)
+             
+            dAxis        = (position.x2Axis - lastPosition.x2Axis) * (position.x2Axis - lastPosition.x2Axis)
+            dAxis       += (position.y2Axis - lastPosition.y2Axis) * (position.y2Axis - lastPosition.y2Axis)
+            dAxis        = sqrt(dAxis)
+            
+            if dSpeed < (dAxis / dBlock) {
+                dSpeed   = dAxis / dBlock
+            }
+            
+            if dSpeed.isInfinite {
+                calcFeedSpeed   = Double(data.maxFeedSpeed)
+            } else if dSpeed.isNaN {
+                calcFeedSpeed   = Double(data.targetFeedSpeed)
+            }  else if dSpeed <= 0.0 {
+                calcFeedSpeed   = Double(data.targetFeedSpeed)
+            } else {
+                calcFeedSpeed  = dSpeed * Double(data.targetFeedSpeed)
+            }
+        }
+        
+        position.feedSpeed      = calcFeedSpeed
+        if data.fastPretravel == true,
+            position.pretravel == true {
+            position.feedSpeed      = Double(data.pretravelSpeed)
+        }
+        if let speed = position.feedSpeed {
+            if speed > Double(data.maxFeedSpeed) {
+                position.feedSpeed      = Double(data.maxFeedSpeed)
+            }
+        } else {
+            position.feedSpeed      = Double(data.targetFeedSpeed)
+        }
+        
+    }
+    public func merge() -> Int {
+        guard let mergingData = self.mergingData,
+                  mergingData.positions.count > 0,
+                  data.positions.count > 0 else {
+            return -1
+        }
+        
+        // copy all Block Positions to Shape Positions, delete rotation and movement
+        for position in mergingData.positions {
+            position.x1Shape        = position.x1Block
+            position.x2Shape        = position.x2Block
+            position.y1Shape        = position.y1Block
+            position.y2Shape        = position.y2Block
+            position.w1Shape        = position.w1Block - mergingData.shapeSpacingLeft
+            position.w2Shape        = position.w2Block - mergingData.shapeSpacingLeft
+        }
+        for position in data.positions {
+            position.x1Shape        = position.x1Block
+            position.x2Shape        = position.x2Block
+            position.y1Shape        = position.y1Block
+            position.y2Shape        = position.y2Block
+            position.w1Shape        = position.w1Block - mergingData.shapeSpacingLeft
+            position.w2Shape        = position.w2Block - mergingData.shapeSpacingLeft
+        }
+        var positions               = data.positions
+        positions                   += mergingData.positions
+        initShape()
+        data.shapeSpacingLeft       = mergingData.shapeSpacingLeft
+        data.positions              = positions
+        self.mergingData            = nil
+        // neu berechnen und Graph aktualisieren
+        _ = calculateShape()
+        _ = generatePreview()
+        
+        
+        return 0
+    }
+    public func discard() -> Int {
+        guard let mergingData = self.mergingData,
+                mergingData.positions.count > 0 else {
+            return -1
+        }
+        self.data           = mergingData.copy() as FCalcData
+        self.mergingData    = nil
+        // neu berechnen und Graph aktualisieren
+        _ = calculateShape()
+        _ = generatePreview()
+        requestUpdateSettingsTable()
+        return 0
+    }
+    
+    
+    // MARK: - Preview
+    
+    private func initializeGraph() -> Int {
+        cameraNode                  = SCNNode()
+        cameraNode.camera           = SCNCamera()
+        cameraNode.camera!.zFar     = (max(data.cutterWidth, data.cutterHeight) + data.cutterDepth) * 3;
+        cameraNode.camera!.zNear    = 5.0;
+        previewNode.addChildNode(cameraNode)
+        
+        setCamera(.home)
+        
+        previewNode.light           = SCNLight()
+        previewNode.light!.type = .ambient
+        previewNode.light!.color = NSColor(white: 0.67, alpha: 1.0)
+        
+        return 0
+    }
+    public func setCamera(_ direction: cameraDirection = .front) {
+        switch (direction) {
+        case .top:
+            cameraNode.position = SCNVector3(x: CGFloat(data.cutterWidth * 0.5),
+                                             y: CGFloat(cameraNode.camera!.zFar * 0.5 + data.cutterHeight),
+                                             z: 0)
+            cameraNode.eulerAngles      = SCNVector3(x: .pi * -0.5,
+                                                     y: .pi * 0.0,
+                                                     z: .pi * 0.0)
+            break
+        case .left:
+            cameraNode.position = SCNVector3(x: CGFloat(cameraNode.camera!.zFar * -0.5),
+                                             y: 0,
+                                             z: CGFloat(data.cutterDepth * -0.5))
+            cameraNode.eulerAngles      = SCNVector3(x: .pi * 0.0,
+                                                     y: .pi * -0.5,
+                                                     z: .pi * 0.0)
+            break
+        case .right:
+            cameraNode.position = SCNVector3(x: CGFloat(cameraNode.camera!.zFar * 0.5 + data.cutterWidth),
+                                             y: 0,
+                                             z: CGFloat(data.cutterDepth * -0.5))
+            cameraNode.eulerAngles      = SCNVector3(x: .pi * 0.0,
+                                                     y: .pi * 0.5,
+                                                     z: .pi * 0.0)
+            break
+        case .home:
+            cameraNode.position = SCNVector3(x: CGFloat(cameraNode.camera!.zFar * -0.3  + data.cutterWidth),
+                                             y: CGFloat(cameraNode.camera!.zFar * 0.3   + data.cutterHeight),
+                                             z: CGFloat(cameraNode.camera!.zFar * 0.3   - data.cutterDepth))
+            cameraNode.eulerAngles      = SCNVector3(x: .pi * -0.25,
+                                                     y: .pi * -0.25,
+                                                     z: .pi * 0.0)
+            break
+        default: // front
+            cameraNode.position = SCNVector3(x: CGFloat(data.cutterWidth * 0.5),
+                                             y: 0,
+                                             z: CGFloat(cameraNode.camera!.zFar * 0.5))
+            cameraNode.eulerAngles      = SCNVector3(x: .pi * 0.0,
+                                                     y: .pi * 0.0,
+                                                     z: .pi * 0.0)
+            break
+            
+        }
+        
+      //  previewNode.addChildNode(cameraNode)
+    }
+    
+    
+    private func generatePreview() -> Int {
+        defer {
+            if let f = callback?.updatePreview(_:) {
+                f(previewNode)
+            }
+        }
+        
+        blockNode.removeFromParentNode()
+        cutterNode.removeFromParentNode()
+        shapeNode.removeFromParentNode()
+        shapeCutNode.removeFromParentNode()
+        axisNode.removeFromParentNode()
+        mergingShapeNode.removeFromParentNode()
+        mergingShapeCutNode.removeFromParentNode()
+        
+        stop()      // stop the simulation
+        
+        blockNode       = generateFoamBlockeNode(x:             data.blockSpacingFront,
+                                                 y:             data.blockSpacingUnder,
+                                                 w:             data.blockSpacingLeft,
+                                                 depth:         data.blockDepth,
+                                                 height:        data.blockHeight,
+                                                 width:         data.blockWidth,
+                                                 rotationY:     data.blockRotation,
+                                                 color:         blockColor,
+                                                 edgeColor:     blockColor)
+        blockNode.isHidden       = !self.showBlockGraph
+        previewNode.addChildNode(blockNode)
+        
+        cutterNode           = generateCutterNode(depth:        data.cutterDepth,
+                                                  height:       data.cutterHeight,
+                                                  width:        data.cutterWidth,
+                                                  color:        cutterColor,
+                                                  edgeColor:    cutterColor)
+        cutterNode.isHidden  = !self.showCutterGraph
+        previewNode.addChildNode(cutterNode)
+                
+        
+        if let mergingData = self.mergingData {
+            mergingShapeNode     = generateShapeNode(data:          mergingData,
+                                                     color:         self.mergingShapeColor,
+                                                     colorHotwire:  self.mergingShapeColorHotwire)
+            mergingShapeNode.isHidden   = !self.showShapeGraph
+            previewNode.addChildNode(mergingShapeNode)
+            
+            mergingShapeCutNode         = generateShapeCutNode(data:          mergingData,
+                                                               color:         self.mergingShapeColor,
+                                                               colorHotwire:  self.mergingShapeColorHotwire)
+            mergingShapeCutNode.isHidden   = !self.showShapeCutGraph
+            previewNode.addChildNode(mergingShapeCutNode)
+            
+        }
+        
+        
+        shapeNode            = generateShapeNode(data:          self.data,
+                                                 color:         self.shapeColorHotwire,
+                                                 colorHotwire:  self.shapeColorHotwire)
+        shapeNode.isHidden   = !self.showShapeGraph
+        previewNode.addChildNode(shapeNode)
+        
+        shapeCutNode         = generateShapeCutNode(data:          self.data,
+                                                    color:         self.shapeColorHotwire,
+                                                    colorHotwire:  self.shapeColorHotwire)
+        shapeCutNode.isHidden   = !self.showShapeCutGraph
+        previewNode.addChildNode(shapeCutNode)
+        
+        axisNode             = generateAxisNode()
+        axisNode.isHidden    = !self.showAxisGraph
+        previewNode.addChildNode(axisNode)
+        
+        
+        
+        
+        return 0
+    }
+    private func sin(_ degrees: Double) -> Double {
+        return __sinpi(degrees/180.0)
+    }
+    private func cos(_ degrees: Double) -> Double {
+        return __cospi(degrees/180.0)
+    }
+    private func generateCutterNode(depth:        Double,
+                                    height:       Double,
+                                    width:        Double,
+                                    color:        NSColor,
+                                    edgeColor:    NSColor,
+                                    diameter:     Double    = 2.0) -> SCNNode {
+            
+         var plane:      SCNPlane
+         var planeNode:  SCNNode
+         
+         let node        = SCNNode()
+         let color       = color.withAlphaComponent(0.5)
+         
+         plane           = SCNPlane(width: CGFloat(depth),
+                                    height: CGFloat(height))
+         plane.firstMaterial?.diffuse.contents   = color
+         plane.firstMaterial?.isDoubleSided      = true
+         planeNode                               = SCNNode(geometry:plane)
+         planeNode.eulerAngles.y                 = .pi / 2
+         planeNode.position.x                    = CGFloat(width)        * (-0.5)
+         node.addChildNode(planeNode)
+         
+         planeNode                               = planeNode.clone()
+         planeNode.position.x                    = CGFloat(width)        * (0.5)
+         node.addChildNode(planeNode)
+         
+         node.pivot                              = SCNMatrix4MakeTranslation(CGFloat(-width)/2.0, CGFloat(-height)/2.0, CGFloat(depth)/2.0);
+         
+         return node
+    }
+     
+                
+    private func generateShapeNode(data: FCalcData, color: NSColor, colorHotwire: NSColor) -> SCNNode {
+        let node        = SCNNode()
+         
+        for position in data.positions {
+            var c = color
+            if position.hotwire {
+                c = colorHotwire
+            }
+            node.addChildNode(drawLine(x1:      position.x1Block,
+                                       y1:      position.y1Block,
+                                       w1:      position.w1Block,
+                                       x2:      position.x2Block,
+                                       y2:      position.y2Block,
+                                       w2:      position.w2Block,
+                                       color:   c))
+        }
+        return node
+    }
+     private func generateShapeCutNode(data: FCalcData, color: NSColor, colorHotwire: NSColor) -> SCNNode {
+         let node        = SCNNode()
+         var first       = true
+         var x:          Double = 0.0
+         var y:          Double = 0.0
+         var w:          Double = 0.0
+         
+         for position in data.positions {
+             if first {
+                 first = false
+                 x = position.x1Block
+                 y = position.y1Block
+                 w = position.w1Block
+             } else {
+                 var c = color
+                 if position.hotwire {
+                     c = colorHotwire
+                 }
+                 node.addChildNode(drawLine(x1: x,
+                                            y1: y,
+                                            w1: w,
+                                            x2: position.x1Block,
+                                            y2: position.y1Block,
+                                            w2: position.w1Block,
+                                            color: c))
+                 x = position.x1Block
+                 y = position.y1Block
+                 w = position.w1Block
+             }
+         }
+         
+         first       = true
+         for position in data.positions {
+             if first {
+                 first = false
+                 x = position.x2Block
+                 y = position.y2Block
+                 w = position.w2Block
+             } else {
+                 var c = color
+                 if position.hotwire {
+                     c = colorHotwire
+                 }
+                 node.addChildNode(drawLine(x1: x,
+                                            y1: y,
+                                            w1: w,
+                                            x2: position.x2Block,
+                                            y2: position.y2Block,
+                                            w2: position.w2Block,
+                                            color: c))
+                 x = position.x2Block
+                 y = position.y2Block
+                 w = position.w2Block
+             }
+         }
+         
+         
+         return node
+        
+     }
+     private func updateWireNode()  {
+         wireNode.removeFromParentNode()
+         wireNode    = SCNNode()
+         
+         guard let markedPosition = markedPosition else {
+             return
+         }
+         if markedPosition >= data.positions.count {
+             self.markedPosition = nil
+             return
+         }
+         let position = data.positions[markedPosition]
+         
+         
+         //SCNTransaction.begin()
+        // SCNTransaction.animationDuration = 0.5
+         wireNode.addChildNode(drawLine(x1:      position.x1Axis,
+                                        y1:      position.y1Axis,
+                                        w1:      0.0,
+                                        x2:      position.x2Axis,
+                                        y2:      position.y2Axis,
+                                        w2:      data.cutterWidth,
+                                        color:   wireColor))
+         previewNode.addChildNode(wireNode)
+         
+         
+       //  SCNTransaction.commit()
+         
+     }
+     private func generateAxisNode() -> SCNNode {
+         let node        = SCNNode()
+         var first       = true
+         var x:          Double = 0.0
+         var y:          Double = 0.0
+         
+         for position in data.positions {
+             if first {
+                 first = false
+                 x = position.x1Axis
+                 y = position.y1Axis
+             } else {
+                 var color = axisColor
+                 if position.hotwire {
+                     color = axisColorHotwire
+                 }
+                 if (position.x1Axis < 0) || (position.y1Axis < 0) || (position.x1Axis > data.cutterDepth) || (position.y1Axis > data.cutterHeight) ||
+                    (x < 0) || (y < 0) || (x > data.cutterDepth) || (y > data.cutterHeight) {
+                     color = axisColorAlert
+                 }
+
+                 node.addChildNode(drawLine(x1:      x,
+                                            y1:      y,
+                                            w1:      0.0,
+                                            x2:      position.x1Axis,
+                                            y2:      position.y1Axis,
+                                            w2:      0.0,
+                                            color:   color))
+                 x = position.x1Axis
+                 y = position.y1Axis
+             }
+         }
+         
+         first       = true
+         for position in data.positions {
+             if first {
+                 first = false
+                 x = position.x2Axis
+                 y = position.y2Axis
+             } else {
+                 var color = axisColor
+                 if position.hotwire {
+                     color = axisColorHotwire
+                 }
+                 if (position.x2Axis < 0) || (position.y2Axis < 0) || (position.x2Axis > data.cutterDepth) || (position.y2Axis > data.cutterHeight) ||
+                    (x < 0) || (y < 0) || (x > data.cutterDepth) || (y > data.cutterHeight) {
+                     color = axisColorAlert
+                 }
+
+                 node.addChildNode(drawLine(x1:      x,
+                                            y1:      y,
+                                            w1:      data.cutterWidth,
+                                            x2:      position.x2Axis,
+                                            y2:      position.y2Axis,
+                                            w2:      data.cutterWidth,
+                                            color:   color))
+                 x = position.x2Axis
+                 y = position.y2Axis
+             }
+         }
+         
+         
+         return node
+        
+     }
+
+     private func drawLine(x1:       Double,
+                           y1:       Double,
+                           w1:       Double,
+                           x2:       Double,
+                           y2:       Double,
+                           w2:       Double,
+                           color:    NSColor,
+                           diameter: Double    = 2.0) -> SCNNode {
+
+         let p1 = SCNVector3Make(CGFloat(w1), CGFloat(y1), CGFloat(-x1))
+         let p2 = SCNVector3Make(CGFloat(w2), CGFloat(y2), CGFloat(-x2))
+         
+         let vector                  = SCNVector3(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
+         let distance                = sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z)
+         let midPosition             = SCNVector3 (x:(p1.x + p2.x) / 2, y:(p1.y + p2.y) / 2, z:(p1.z + p2.z) / 2)
+
+         let lineGeometry            = SCNCapsule()
+         lineGeometry.capRadius      = CGFloat(diameter/2)
+         lineGeometry.height         = distance + CGFloat(diameter)
+                
+         lineGeometry.radialSegmentCount = 12
+         lineGeometry.firstMaterial!.diffuse.contents = color
+
+         let lineNode = SCNNode(geometry: lineGeometry)
+         lineNode.position = midPosition
+         lineNode.look (at: p2, up: previewNode.worldUp, localFront: lineNode.worldUp)
+         
+         return lineNode
+     }
+     
+    
+     private func generateFoamBlockeNode(x:            Double,
+                                         y:            Double,
+                                         w:            Double,
+                                         depth:        Double,
+                                         height:       Double,
+                                         width:        Double,
+                                         rotationX:    Double    = 0.0,
+                                         rotationY:    Double    = 0.0,
+                                         rotationW:    Double    = 0.0,
+                                         color:        NSColor,
+                                         edgeColor:    NSColor,
+                                         diameter:     Double    = 2.0) -> SCNNode {
+         
+         var h:          CGFloat
+         var edge:       SCNCapsule
+         var edgeNode:   SCNNode
+         let node        = SCNNode()
+         let color       = color.withAlphaComponent(0.5)
+         
+         // draw the box
+         let box         = SCNBox(width: CGFloat(width),
+                                  height: CGFloat(height),
+                                  length: CGFloat(depth),
+                                  chamferRadius: CGFloat(diameter/2))
+         box.firstMaterial?.diffuse.contents = color
+         node.addChildNode(SCNNode(geometry: box))
+         
+         // long edges
+         h                                       = CGFloat(width)
+         edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
+         edge.radialSegmentCount                 = 12
+         edge.firstMaterial?.diffuse.contents    = edgeColor
+         edgeNode                                = SCNNode(geometry: edge)
+         edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
+         edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
+         edgeNode.eulerAngles.x                  = .pi / 2
+         edgeNode.eulerAngles.y                  = .pi / 2
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
+         edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
+         edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
+         edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
+         node.addChildNode(edgeNode)
+         
+         // short edges
+         h                                       = CGFloat(height)
+         edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
+         edge.radialSegmentCount                 = 12
+         edge.firstMaterial?.diffuse.contents    = edgeColor
+         edgeNode                                = SCNNode(geometry: edge)
+         edgeNode.eulerAngles.y                  = .pi / 2
+         edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
+         edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
+         edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
+         edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
+         edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
+         node.addChildNode(edgeNode)
+         
+         h                                       = CGFloat(depth)
+         edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
+         edge.radialSegmentCount                 = 12
+         edge.firstMaterial?.diffuse.contents    = edgeColor
+         edgeNode                                = SCNNode(geometry: edge)
+         edgeNode.eulerAngles.x                  = .pi / 2
+         edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
+         edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
+         edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
+         edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
+         node.addChildNode(edgeNode)
+         
+         edgeNode                                = edgeNode.clone()
+         edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
+         edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
+         node.addChildNode(edgeNode)
+         
+         node.pivot                              = SCNMatrix4MakeTranslation(CGFloat(-width)/2.0, CGFloat(-height)/2.0, CGFloat(depth)/2.0);
+         node.eulerAngles.y                      = CGFloat(rotationY / 180.0 * .pi)
+         node.eulerAngles.z                      = CGFloat(rotationX / 180.0 * .pi)
+         node.eulerAngles.x                      = CGFloat(-rotationW / 180.0 * .pi)
+         
+         node.position.y                         = CGFloat(y)
+         node.position.z                         = CGFloat(-x)
+         node.position.x                         = CGFloat(w)
+         
+         
+         return node
+     }
+    // MARK: - Supportfunctions
     
      
     private func dtos(_ value: Double, decimals: UInt = 0, _ useLocalizedDecimalSeperator: Bool = false) -> String {
@@ -1095,12 +1718,6 @@ class FCalc {
         }
         return false
     }
- }
-
-
-
-// Settings Interface
-extension FCalc {
     public func requestUpdatePositionsTable(_ atIndex: Int?) {
     
         if let f = callback?.updatePositionsTableView(_:) {
@@ -1113,13 +1730,75 @@ extension FCalc {
             f()
         }
     }
-    
-}
+// MARK: - Load / Save / New
+    public func newFile() -> Int {
+        // new file is clearing all setting.
+        initShape()
+        self.file       = nil
+        self.name       = nil
+        mergingData     = nil
+        _ = calculateShape()
+        _ = generatePreview()
+        return 0
+    }
+    public func saveToFile(_ file: String?) -> Int {
+        guard data.positions.count > 0 else {
+            NSLog("No data available")
+            return -1;
+        }
+        guard let file = file else {
+            NSLog("No filename")
+            return -1;
+        }
+        let url        = URL(fileURLWithPath: file)
+        let encoder = JSONEncoder()
+        guard let encodedData = try? encoder.encode(self.data) else {
+            NSLog("Unable do encode")
+            return -1
+        }
+        try? encodedData.write(to: url)
+         
+        return 0
+    }
+    public func loadFromFile(_ file: String?) -> Int {
+        return loadFromFile(file, withMerge: false)
+    }
+    private func loadFromFile(_ file: String?, withMerge: Bool = false) -> Int {
+        guard let file = file else {
+            NSLog("No filename")
+            return -1;
+        }
+        // alte Daten sichern für merge
+        mergingData     = nil
+        if withMerge == true,
+           data.positions.count > 0 {
+            // data can be merged...
+            // save original data
+            mergingData = data.copy() as FCalcData
+        }
+        if self.file == nil {
+            self.file       = file      // store filename incl path
+            self.name       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
+        }
+        // File Laden
+        let url         = URL(fileURLWithPath: file)
+        let jsonData    = try? Data(contentsOf: url)
+        let decoder     = JSONDecoder()
+        self.data       = try! decoder.decode(FCalcData.self, from: jsonData!)
+        
+        
+        
+        _ = calculateShape()
+        _ = generatePreview()
+        requestUpdateSettingsTable()
+        return 0
+    }
+
 
 // MARK: - Simulation
-extension FCalc {
+
     @objc public func play() {
-        guard positions.count > 0 else {
+        guard data.positions.count > 0 else {
             return
         }
         
@@ -1133,9 +1812,9 @@ extension FCalc {
         // calculate the distance
         var time: TimeInterval      = 0.5
         if let index = markedPosition,
-            (index + 1) < (positions.count) {
-            let position        = positions[index]
-            let nextPosition    = positions[index + 1]
+            (index + 1) < (data.positions.count) {
+            let position        = data.positions[index]
+            let nextPosition    = data.positions[index + 1]
             var d1Axis: Double
             var d2Axis: Double
             
@@ -1149,37 +1828,88 @@ extension FCalc {
             
             d1Axis      = max(d1Axis, d2Axis)
             
-            time        = d1Axis / (position.feedSpeed ?? Double(targetFeedSpeed))
+            time        = d1Axis / (position.feedSpeed ?? Double(data.targetFeedSpeed))
             time       *= 60    // mm/min >> seconds
-            time       /= 10     // time elapse (fast)
+            time       /= simulationSpeed     // time elapse (fast)
         }
                
-        simulationTimer =   Timer.scheduledTimer(timeInterval: time,
-                                                 target: self,
-                                                 selector: #selector(play),
-                                                 userInfo: nil,
-                                                 repeats: false)
+        simulationTimer =   Timer.scheduledTimer(timeInterval:  time,
+                                                 target:        self,
+                                                 selector:      #selector(play),
+                                                 userInfo:      nil,
+                                                 repeats:       false)
     }
     
     public func pause() {
         simulationTimer?.invalidate()
-        simulationTimer = nil
-        
+        simulationTimer     = nil
+    }
+    public func playPause() {
+        if simulationTimer == nil {
+            play()
+        } else {
+            pause()
+        }
     }
     
     public func stop() {
         simulationTimer?.invalidate()
-        simulationTimer = nil
+        simulationTimer     = nil
         wireNode.removeFromParentNode()
-        markedPosition  = nil
+        markedPosition      = nil
+    }
+
+
+// MARK: - Registry
+    private func saveReg() {
+        guard storeInReg.count > 0 else {
+            return
+        }
+        for key in storeInReg {
+            let v = valueForKey(key)
+            setReg(key.description, value: v)
+        }
+        setReg(SettingsTableKey.none.description, value: "valid")
+    }
+    private func loadReg() {
+        guard storeInReg.count > 0 else {
+            return
+        }
+        
+        // check if values are stored
+        guard let _ = getReg(SettingsTableKey.none.description) else {
+            return
+        }
+        
+        for key in storeInReg {
+            if let v =  getReg(key.description) {
+                valueForKey(key, value: v, initial: true)
+            }
+        }
     }
     
     
-}
+    private func getReg(_ forKey: String?) -> String? {
+        if let key = forKey {
+            return UserDefaults.standard.string(forKey: key)
+        } else {
+            return nil
+        }
+    }
+    func setReg(_ forKey: String?, value: String?) {
+        if let key = forKey,
+            let v   = value {
+            return UserDefaults.standard.set(v, forKey: key)
+        }
+    }
+    private func clearReg(_ forKey: String?) {
+        if let key = forKey {
+            return UserDefaults.standard.set(nil, forKey: key)
+        }
+    }
+
 
 // MARK: - Interface
-extension FCalc {
-    
     public enum DataType: Int {
         case none
         case header
@@ -1187,7 +1917,7 @@ extension FCalc {
         case uint
         case boolean
         case string
-        case color
+      //  case color
     }
     public func dataTypeForKey(_ key: SettingsTableKey) -> DataType {
         switch (key) {
@@ -1224,12 +1954,13 @@ extension FCalc {
         case .shapeY:                   return .double
         case .shapeMirror:              return .boolean
         case .shapeFlip:                return .boolean
-        case .chart:                    return .header
+        case .preview:                  return .header
         case .showAxisGraph:            return .boolean
         case .showShapeGraph:           return .boolean
         case .showCutterGraph:          return .boolean
         case .showBlockGraph:           return .boolean
         case .showShapeCutGraph:        return .boolean
+        case .simulationSpeed:          return .double
         default:                        return .none
         }
     }
@@ -1269,7 +2000,9 @@ extension FCalc {
              .shapeX,
              .shapeY,
              .shapeMirror,
-             .shapeFlip:
+             .shapeFlip,
+             .simulationSpeed:
+            
             
             
             
@@ -1313,51 +2046,54 @@ extension FCalc {
         case .shapeY:                   return "Y movement"
         case .shapeMirror:              return "Mirror the shape:"
         case .shapeFlip:                return "Flip the shape:"
-        case .chart:                    return "Show in Graphic"
-        case .showAxisGraph:            return "Machine movement:"
-        case .showShapeGraph:           return "Shape:"
-        case .showCutterGraph:          return "Machine dimension:"
-        case .showBlockGraph:           return "Foam dimensions:"
-        case .showShapeCutGraph:        return "Shape cutting line:"
+        case .preview:                  return "Preview"
+        case .showAxisGraph:            return "Show machine movement:"
+        case .showShapeGraph:           return "Show shape:"
+        case .showCutterGraph:          return "Show machine dimension:"
+        case .showBlockGraph:           return "Show foam dimensions:"
+        case .showShapeCutGraph:        return "Show shape cutting line:"
+        case .simulationSpeed:          return "Simulation Speed Factor:"
+    
         default:           return ""
         }
     }
     public func valueForKey(_ key: SettingsTableKey) -> String {
         switch (key) {
-        case .cutterWidth:              return dtos(cutterWidth,            decimals: 0, true)
-        case .cutterHeight:             return dtos(cutterHeight,           decimals: 0, true)
-        case .cutterDepth:              return dtos(cutterDepth,            decimals: 0, true)
-        case .labelX1Axis:              return labelX1Axis
-        case .labelY1Axis:              return labelY1Axis
-        case .labelX2Axis:              return labelX2Axis
-        case .labelY2Axis:              return labelY2Axis
-        case .gcodeDecimals:            return String(gcodeDecimals)
-        case .targetFeedSpeed:          return String(targetFeedSpeed)
-        case .maxFeedSpeed:             return String(maxFeedSpeed)
-        case .feedSpeedCorrection:      return btos(feedSpeedCorrection)
-        case .fastPretravel:            return btos(fastPretravel)
-        case .pretravelSpeed:           return String(pretravelSpeed)
-        case .hotwirePower:             return String(hotwirePower)
-        case .hotwirePreheat:           return String(hotwirePreheat)
-        case .blockWidth:               return dtos(blockWidth,             decimals: 0, true)
-        case .blockHeight:              return dtos(blockHeight,            decimals: 0, true)
-        case .blockDepth:               return dtos(blockDepth,             decimals: 0, true)
-        case .blockSpacingLeft:         return dtos(blockSpacingLeft,       decimals: 0, true)
-        case .blockSpacingFront:        return dtos(blockSpacingFront,      decimals: 0, true)
-        case .blockSpacingUnder:        return dtos(blockSpacingUnder,      decimals: 0, true)
-        case .blockRotation:            return dtos(blockRotation,          decimals: 0, true)
-        case .shapeWidth:               return dtos(shapeWidth,             decimals: 0, true)
-        case .shapeSpacingLeft:         return dtos(shapeSpacingLeft,       decimals: 0, true)
-        case .shapeRotation:            return dtos(shapeRotation,          decimals: 0, true)
-        case .shapeX:                   return dtos(shapeX,                 decimals: gcodeDecimals, true)
-        case .shapeY:                   return dtos(shapeY,                 decimals: gcodeDecimals, true)
-        case .shapeMirror:              return btos(shapeMirror)
-        case .shapeFlip:                return btos(shapeFlip)
+        case .cutterWidth:              return dtos(data.cutterWidth,            decimals: 0, true)
+        case .cutterHeight:             return dtos(data.cutterHeight,           decimals: 0, true)
+        case .cutterDepth:              return dtos(data.cutterDepth,            decimals: 0, true)
+        case .labelX1Axis:              return data.labelX1Axis
+        case .labelY1Axis:              return data.labelY1Axis
+        case .labelX2Axis:              return data.labelX2Axis
+        case .labelY2Axis:              return data.labelY2Axis
+        case .gcodeDecimals:            return String(data.gcodeDecimals)
+        case .targetFeedSpeed:          return String(data.targetFeedSpeed)
+        case .maxFeedSpeed:             return String(data.maxFeedSpeed)
+        case .feedSpeedCorrection:      return btos(data.feedSpeedCorrection)
+        case .fastPretravel:            return btos(data.fastPretravel)
+        case .pretravelSpeed:           return String(data.pretravelSpeed)
+        case .hotwirePower:             return String(data.hotwirePower)
+        case .hotwirePreheat:           return String(data.hotwirePreheat)
+        case .blockWidth:               return dtos(data.blockWidth,             decimals: 0, true)
+        case .blockHeight:              return dtos(data.blockHeight,            decimals: 0, true)
+        case .blockDepth:               return dtos(data.blockDepth,             decimals: 0, true)
+        case .blockSpacingLeft:         return dtos(data.blockSpacingLeft,       decimals: 0, true)
+        case .blockSpacingFront:        return dtos(data.blockSpacingFront,      decimals: 0, true)
+        case .blockSpacingUnder:        return dtos(data.blockSpacingUnder,      decimals: 0, true)
+        case .blockRotation:            return dtos(data.blockRotation,          decimals: 0, true)
+        case .shapeWidth:               return dtos(data.shapeWidth,             decimals: 0, true)
+        case .shapeSpacingLeft:         return dtos(data.shapeSpacingLeft,       decimals: 0, true)
+        case .shapeRotation:            return dtos(data.shapeRotation,          decimals: 0, true)
+        case .shapeX:                   return dtos(data.shapeX,                 decimals: data.gcodeDecimals, true)
+        case .shapeY:                   return dtos(data.shapeY,                 decimals: data.gcodeDecimals, true)
+        case .shapeMirror:              return btos(data.shapeMirror)
+        case .shapeFlip:                return btos(data.shapeFlip)
         case .showAxisGraph:            return btos(showAxisGraph)
         case .showShapeGraph:           return btos(showShapeGraph)
         case .showCutterGraph:          return btos(showCutterGraph)
         case .showBlockGraph:           return btos(showBlockGraph)
         case .showShapeCutGraph:        return btos(showShapeCutGraph)
+        case .simulationSpeed:          return dtos(simulationSpeed,        decimals: 0, true)
         default:           return ""
         }
     }
@@ -1373,25 +2109,25 @@ extension FCalc {
         case .labelX2Axis:              return value.isValidString(1)
         case .labelY2Axis:              return value.isValidString(1)
         case .gcodeDecimals:            return value.isValidUInt(0, 4)
-        case .targetFeedSpeed:          return value.isValidUInt(0, maxFeedSpeed)
+        case .targetFeedSpeed:          return value.isValidUInt(0, data.maxFeedSpeed)
         case .maxFeedSpeed:             return value.isValidUInt(0)
         case .feedSpeedCorrection:      return true // ToDo ggf. prüfung auf 1 und 0
         case .fastPretravel:            return true // ToDo ggf. prüfung auf 1 und 0
         case .pretravelSpeed:           return value.isValidUInt(0)
         case .hotwirePower:             return value.isValidUInt(0, 100)
         case .hotwirePreheat:           return value.isValidUInt(0, 30)
-        case .blockWidth:               return value.isValidDouble(0, 0, cutterWidth)
+        case .blockWidth:               return value.isValidDouble(0, 0, data.cutterWidth)
         case .blockHeight:              return value.isValidDouble(0, 0)
         case .blockDepth:               return value.isValidDouble(0, 0)
-        case .blockSpacingLeft:         return value.isValidDouble(0, 0, cutterWidth - blockWidth)
+        case .blockSpacingLeft:         return value.isValidDouble(0, 0, data.cutterWidth - data.blockWidth)
         case .blockSpacingFront:        return value.isValidDouble(0, 0)
         case .blockSpacingUnder:        return value.isValidDouble(0, 0)
         case .blockRotation:            return value.isValidDouble(0, -90.0, 90.0)
-        case .shapeWidth:               return value.isValidDouble(0, 0, cutterWidth)
-        case .shapeSpacingLeft:         return value.isValidDouble(0, 0, cutterWidth - shapeWidth)
+        case .shapeWidth:               return value.isValidDouble(0, 0, data.cutterWidth)
+        case .shapeSpacingLeft:         return value.isValidDouble(0, 0, data.cutterWidth - data.shapeWidth)
         case .shapeRotation:            return value.isValidDouble(0, -90.0, 90.0)
-        case .shapeX:                   return value.isValidDouble(gcodeDecimals, -1000.0)
-        case .shapeY:                   return value.isValidDouble(gcodeDecimals, -1000.0)
+        case .shapeX:                   return value.isValidDouble(data.gcodeDecimals, -1000.0)
+        case .shapeY:                   return value.isValidDouble(data.gcodeDecimals, -1000.0)
         case .shapeMirror:              return true
         case .shapeFlip:                return true
         case .showAxisGraph:            return true // ToDo ggf. prüfung auf 1 und 0
@@ -1399,48 +2135,50 @@ extension FCalc {
         case .showCutterGraph:          return true
         case .showBlockGraph:           return true
         case .showShapeCutGraph:        return true
+        case .simulationSpeed:          return value.isValidDouble(1, 500)
         default: return false
         }
          
     }
-    public func valueForKey(_ key: SettingsTableKey, value: String?) {
+    public func valueForKey(_ key: SettingsTableKey, value: String?, initial: Bool = false) {
         switch (key) {
-        case .cutterWidth:              self.cutterWidth             = stod(value, true);     break;
-        case .cutterHeight:             self.cutterHeight            = stod(value, true);     break;
-        case .cutterDepth:              self.cutterDepth             = stod(value, true);     break;
-        case .labelX1Axis:              self.labelX1Axis             = value ?? "X";          break;
-        case .labelY1Axis:              self.labelY1Axis             = value ?? "Y";          break;
-        case .labelX2Axis:              self.labelX1Axis             = value ?? "U";          break;
-        case .labelY2Axis:              self.labelY1Axis             = value ?? "Z";          break;
-        case .gcodeDecimals:            self.gcodeDecimals           = stoui(value);          break;
-        case .targetFeedSpeed:          self.targetFeedSpeed         = stoui(value);          break;
-        case .maxFeedSpeed:             self.maxFeedSpeed            = stoui(value);          break;
-        case .feedSpeedCorrection:      self.feedSpeedCorrection     = stob(value);           break;
-        case .fastPretravel:            self.fastPretravel           = stob(value);           break;
-        case .pretravelSpeed:           self.pretravelSpeed          = stoui(value);          break;
-        case .hotwirePower:             self.hotwirePower            = stoui(value);          break;
-        case .hotwirePreheat:           self.hotwirePreheat          = stoui(value);          break;
-        case .blockWidth:               self.blockWidth              = stod(value, true);     break;
-        case .blockHeight:              self.blockHeight             = stod(value, true);     break;
-        case .blockDepth:               self.blockDepth              = stod(value, true);     break;
-        case .blockSpacingLeft:         self.blockSpacingLeft        = stod(value, true);     break;
-        case .blockSpacingFront:        self.blockSpacingFront       = stod(value, true);     break;
-        case .blockSpacingUnder:        self.blockSpacingUnder       = stod(value, true);     break;
-        case .blockRotation:            self.blockRotation           = stod(value, true);     break;
-        case .shapeWidth:               self.shapeWidth              = stod(value, true);     break;
-        case .shapeSpacingLeft:         self.shapeSpacingLeft        = stod(value, true);     break;
-        case .shapeRotation:            self.shapeRotation           = stod(value, true);     break;
-        case .shapeX:                   self.shapeX                  = stod(value, true);     break;
-        case .shapeY :                  self.shapeY                  = stod(value, true);     break;
-        case .shapeMirror:              self.shapeMirror             = stob(value);
+        case .cutterWidth:              data.cutterWidth             = stod(value, true);     break;
+        case .cutterHeight:             data.cutterHeight            = stod(value, true);     break;
+        case .cutterDepth:              data.cutterDepth             = stod(value, true);     break;
+        case .labelX1Axis:              data.labelX1Axis             = value ?? "X";          break;
+        case .labelY1Axis:              data.labelY1Axis             = value ?? "Y";          break;
+        case .labelX2Axis:              data.labelX1Axis             = value ?? "U";          break;
+        case .labelY2Axis:              data.labelY1Axis             = value ?? "Z";          break;
+        case .gcodeDecimals:            data.gcodeDecimals           = stoui(value);          break;
+        case .targetFeedSpeed:          data.targetFeedSpeed         = stoui(value);          break;
+        case .maxFeedSpeed:             data.maxFeedSpeed            = stoui(value);          break;
+        case .feedSpeedCorrection:      data.feedSpeedCorrection     = stob(value);           break;
+        case .fastPretravel:            data.fastPretravel           = stob(value);           break;
+        case .pretravelSpeed:           data.pretravelSpeed          = stoui(value);          break;
+        case .hotwirePower:             data.hotwirePower            = stoui(value);          break;
+        case .hotwirePreheat:           data.hotwirePreheat          = stoui(value);          break;
+        case .blockWidth:               data.blockWidth              = stod(value, true);     break;
+        case .blockHeight:              data.blockHeight             = stod(value, true);     break;
+        case .blockDepth:               data.blockDepth              = stod(value, true);     break;
+        case .blockSpacingLeft:         data.blockSpacingLeft        = stod(value, true);     break;
+        case .blockSpacingFront:        data.blockSpacingFront       = stod(value, true);     break;
+        case .blockSpacingUnder:        data.blockSpacingUnder       = stod(value, true);     break;
+        case .blockRotation:            data.blockRotation           = stod(value, true);     break;
+        case .shapeWidth:               data.shapeWidth              = stod(value, true);     break;
+        case .shapeSpacingLeft:         data.shapeSpacingLeft        = stod(value, true);     break;
+        case .shapeRotation:            data.shapeRotation           = stod(value, true);     break;
+        case .shapeX:                   data.shapeX                  = stod(value, true);     break;
+        case .shapeY :                  data.shapeY                  = stod(value, true);     break;
+        case .shapeMirror:              data.shapeMirror             = stob(value);
                                         mirrorShape();                                        break;
-        case .shapeFlip:                self.shapeFlip               = stob(value);
+        case .shapeFlip:                data.shapeFlip               = stob(value);
                                         flipShape();                                          break;
         case .showAxisGraph:            self.showAxisGraph           = stob(value);
                                         axisNode.isHidden            = !self.showAxisGraph
                                         return
         case .showShapeGraph:           self.showShapeGraph          = stob(value);
                                         shapeNode.isHidden           = !self.showShapeGraph
+                                        mergingShapeNode.isHidden    = !self.showShapeGraph
                                         return
         case .showCutterGraph:          self.showCutterGraph         = stob(value);
                                         cutterNode.isHidden          = !self.showCutterGraph
@@ -1450,37 +2188,43 @@ extension FCalc {
                                         return
         case .showShapeCutGraph:        self.showShapeCutGraph       = stob(value);
                                         shapeCutNode.isHidden        = !self.showShapeCutGraph
+                                        mergingShapeCutNode.isHidden = !self.showShapeCutGraph
                                         return
+        case .simulationSpeed:          self.simulationSpeed         = stod(value, true);     break;
         
         default: return
         }
+        if initial == true {     // skip postprocessing fo new data, if it is an initial Load
+            return
+        }
+        saveReg()
         // neu berechnen und Graph aktualisieren
         _ = calculateShape()
-        _ = generateGraph()
+        _ = generatePreview()
     }
    
     func valueFor(_ key: PositionTableKey, index: Int) -> String? {
-        if index >= positions.count {
+        if index >= data.positions.count {
             return nil
         }
-        let position = positions[index]
+        let position = data.positions[index]
         switch key {
-        case .x1Axis:       return dtos(position.x1Axis,     decimals: gcodeDecimals, true)
-        case .y1Axis:       return dtos(position.y1Axis,     decimals: gcodeDecimals, true)
-        case .x2Axis:       return dtos(position.x2Axis,     decimals: gcodeDecimals, true)
-        case .y2Axis:       return dtos(position.y2Axis,     decimals: gcodeDecimals, true)
-        case .x1Shape:      return dtos(position.x1Shape,    decimals: gcodeDecimals, true)
-        case .y1Shape:      return dtos(position.y1Shape,    decimals: gcodeDecimals, true)
-        case .w1Shape:      return dtos(position.w1Shape,    decimals: gcodeDecimals, true)
-        case .x2Shape:      return dtos(position.x2Shape,    decimals: gcodeDecimals, true)
-        case .y2Shape:      return dtos(position.y2Shape,    decimals: gcodeDecimals, true)
-        case .w2Shape:      return dtos(position.w2Shape,    decimals: gcodeDecimals, true)
-        case .x1Block:      return dtos(position.x1Block,    decimals: gcodeDecimals, true)
-        case .y1Block:      return dtos(position.y1Block,    decimals: gcodeDecimals, true)
-        case .w1Block:      return dtos(position.w1Block,    decimals: gcodeDecimals, true)
-        case .x2Block:      return dtos(position.x2Block,    decimals: gcodeDecimals, true)
-        case .y2Block:      return dtos(position.y2Block,    decimals: gcodeDecimals, true)
-        case .w2Block:      return dtos(position.w2Block,    decimals: gcodeDecimals, true)
+        case .x1Axis:       return dtos(position.x1Axis,     decimals: data.gcodeDecimals, true)
+        case .y1Axis:       return dtos(position.y1Axis,     decimals: data.gcodeDecimals, true)
+        case .x2Axis:       return dtos(position.x2Axis,     decimals: data.gcodeDecimals, true)
+        case .y2Axis:       return dtos(position.y2Axis,     decimals: data.gcodeDecimals, true)
+        case .x1Shape:      return dtos(position.x1Shape,    decimals: data.gcodeDecimals, true)
+        case .y1Shape:      return dtos(position.y1Shape,    decimals: data.gcodeDecimals, true)
+        case .w1Shape:      return dtos(position.w1Shape,    decimals: data.gcodeDecimals, true)
+        case .x2Shape:      return dtos(position.x2Shape,    decimals: data.gcodeDecimals, true)
+        case .y2Shape:      return dtos(position.y2Shape,    decimals: data.gcodeDecimals, true)
+        case .w2Shape:      return dtos(position.w2Shape,    decimals: data.gcodeDecimals, true)
+        case .x1Block:      return dtos(position.x1Block,    decimals: data.gcodeDecimals, true)
+        case .y1Block:      return dtos(position.y1Block,    decimals: data.gcodeDecimals, true)
+        case .w1Block:      return dtos(position.w1Block,    decimals: data.gcodeDecimals, true)
+        case .x2Block:      return dtos(position.x2Block,    decimals: data.gcodeDecimals, true)
+        case .y2Block:      return dtos(position.y2Block,    decimals: data.gcodeDecimals, true)
+        case .w2Block:      return dtos(position.w2Block,    decimals: data.gcodeDecimals, true)
         case .hotwire:
             if position.hotwire {
                 return "1"
@@ -1502,7 +2246,7 @@ extension FCalc {
         let value = value ?? ""
         switch key {
         case .x1Axis, .y1Axis, .x2Axis, .y2Axis, .x1Block, .y1Block, .w1Block, .x2Block, .y2Block, .w2Block, .x1Shape, .y1Shape, .w1Shape, .x2Shape, .y2Shape, .w2Shape:
-            return value.isValidDouble(gcodeDecimals)
+            return value.isValidDouble(data.gcodeDecimals)
         case .hotwire, .pretravel:
             return true
         default: return false
@@ -1511,14 +2255,14 @@ extension FCalc {
     
 
     func valueFor(_ key: PositionTableKey, index: Int, value: String?) {
-        if index >= positions.count {
+        if index >= data.positions.count {
             return
         }
         guard let value = value else {
             return
         }
         var key = key
-        let position = positions[index]
+        let position = data.positions[index]
         
         switch key {
         case .x1Axis:   position.x1Axis     = stod(value, true);        break
@@ -1557,40 +2301,40 @@ extension FCalc {
         }
         calculatePosition(position, source: key)
         requestUpdatePositionsTable(index)
-        _ = generateGraph()
+        _ = generatePreview()
         
         return
     }
     
     
     func deleteIndex(_ index: Int) {
-        guard index < positions.count else {
+        guard index < data.positions.count else {
             return
         }
-        positions.remove(at: index)
+        data.positions.remove(at: index)
         // neu berechnen und Graph aktualisieren
         _ = calculateShape()
-        _ = generateGraph()
+        _ = generatePreview()
         return
     }
     func addIndex(_ index: Int) {
-        guard positions.count > 0 else {
+        guard data.positions.count > 0 else {
             return
         }
         
         var p1: CuttingPosition
         var p2: CuttingPosition
         
-        if index < positions.count {
-            p2 = positions[index]
+        if index < data.positions.count {
+            p2 = data.positions[index]
         } else {
-            p2 = positions.last!
+            p2 = data.positions.last!
         }
         
         if index > 0 {
-            p1 = positions[index-1]
+            p1 = data.positions[index-1]
         } else {
-            p1 = positions.first!
+            p1 = data.positions.first!
         }
         
         let p = CuttingPosition()
@@ -1601,370 +2345,18 @@ extension FCalc {
         p.y2Shape     =  (p2.y2Shape + p1.y2Shape) / 2
         p.w2Shape     =  (p2.w2Shape + p1.w2Shape) / 2
         
-        if index < positions.count {
-            positions.insert(p, at: index)
+        if index < data.positions.count {
+            data.positions.insert(p, at: index)
         } else {
-            positions.append(p)
+            data.positions.append(p)
         }
         
         // neu berechnen und Graph aktualisieren
         _ = calculateShape()
-        _ = generateGraph()
+        _ = generatePreview()
         return
     }
-    private func generateCutterNode(depth:        Double,
-                                    height:       Double,
-                                    width:        Double,
-                                    color:        NSColor,
-                                    edgeColor:    NSColor,
-                                    diameter:     Double    = 2.0) -> SCNNode {
-           
-        var plane:      SCNPlane
-        var planeNode:  SCNNode
-        
-        let node        = SCNNode()
-        let color       = color.withAlphaComponent(0.5)
-        
-        plane           = SCNPlane(width: CGFloat(depth),
-                                   height: CGFloat(height))
-        plane.firstMaterial?.diffuse.contents   = color
-        plane.firstMaterial?.isDoubleSided      = true
-        planeNode                               = SCNNode(geometry:plane)
-        planeNode.eulerAngles.y                 = .pi / 2
-        planeNode.position.x                    = CGFloat(width)        * (-0.5)
-        node.addChildNode(planeNode)
-        
-        planeNode                               = planeNode.clone()
-        planeNode.position.x                    = CGFloat(width)        * (0.5)
-        node.addChildNode(planeNode)
-        
-        node.pivot                              = SCNMatrix4MakeTranslation(CGFloat(-width)/2.0, CGFloat(-height)/2.0, CGFloat(depth)/2.0);
-        
-        return node
-    }
     
-               
-    private func generateShapeNode() -> SCNNode {
-        let node        = SCNNode()
-        
-        for position in positions {
-            var color = shapeColor
-            if position.hotwire {
-                color = shapeColorHotwire
-            }
-            node.addChildNode(drawLine(x1: position.x1Block,
-                                       y1: position.y1Block,
-                                       w1: position.w1Block,
-                                       x2: position.x2Block,
-                                       y2: position.y2Block,
-                                       w2: position.w2Block,
-                                       color: color))
-        }
-        return node
-    }
-    private func generateShapeCutNode() -> SCNNode {
-        let node        = SCNNode()
-        var first       = true
-        var x:          Double = 0.0
-        var y:          Double = 0.0
-        var w:          Double = 0.0
-        
-        for position in positions {
-            if first {
-                first = false
-                x = position.x1Block
-                y = position.y1Block
-                w = position.w1Block
-            } else {
-                var color = shapeColor
-                if position.hotwire {
-                    color = shapeColorHotwire
-                }
-                node.addChildNode(drawLine(x1: x,
-                                           y1: y,
-                                           w1: w,
-                                           x2: position.x1Block,
-                                           y2: position.y1Block,
-                                           w2: position.w1Block,
-                                           color: color))
-                x = position.x1Block
-                y = position.y1Block
-                w = position.w1Block
-            }
-        }
-        
-        first       = true
-        for position in positions {
-            if first {
-                first = false
-                x = position.x2Block
-                y = position.y2Block
-                w = position.w2Block
-            } else {
-                var color = shapeColor
-                if position.hotwire {
-                    color = shapeColorHotwire
-                }
-                node.addChildNode(drawLine(x1: x,
-                                           y1: y,
-                                           w1: w,
-                                           x2: position.x2Block,
-                                           y2: position.y2Block,
-                                           w2: position.w2Block,
-                                           color: color))
-                x = position.x2Block
-                y = position.y2Block
-                w = position.w2Block
-            }
-        }
-        
-        
-        return node
-       
-    }
-    private func updateWireNode()  {
-        wireNode.removeFromParentNode()
-        wireNode    = SCNNode()
-        
-        guard let markedPosition = markedPosition else {
-            return
-        }
-        if markedPosition >= positions.count {
-            self.markedPosition = nil
-            return
-        }
-        let position = positions[markedPosition]
-        
-        
-        //SCNTransaction.begin()
-       // SCNTransaction.animationDuration = 0.5
-        wireNode.addChildNode(drawLine(x1: position.x1Axis,
-                                       y1: position.y1Axis,
-                                       w1: 0.0,
-                                       x2: position.x2Axis,
-                                       y2: position.y2Axis,
-                                       w2: cutterWidth,
-                                       color: wireColor))
-        previewNode.addChildNode(wireNode)
-        
-        
-      //  SCNTransaction.commit()
-        
-    }
-    private func generateAxisNode() -> SCNNode {
-        let node        = SCNNode()
-        var first       = true
-        var x:          Double = 0.0
-        var y:          Double = 0.0
-        
-        for position in positions {
-            if first {
-                first = false
-                x = position.x1Axis
-                y = position.y1Axis
-            } else {
-                var color = axisColor
-                if position.hotwire {
-                    color = axisColorHotwire
-                }
-                if (position.x1Axis < 0) || (position.y1Axis < 0) || (position.x1Axis > cutterDepth) || (position.y1Axis > cutterHeight) ||
-                   (x < 0) || (y < 0) || (x > cutterDepth) || (y > cutterHeight) {
-                    color = axisColorAlert
-                }
-
-                node.addChildNode(drawLine(x1: x,
-                                           y1: y,
-                                           w1: 0.0,
-                                           x2: position.x1Axis,
-                                           y2: position.y1Axis,
-                                           w2: 0.0,
-                                           color: color))
-                x = position.x1Axis
-                y = position.y1Axis
-            }
-        }
-        
-        first       = true
-        for position in positions {
-            if first {
-                first = false
-                x = position.x2Axis
-                y = position.y2Axis
-            } else {
-                var color = axisColor
-                if position.hotwire {
-                    color = axisColorHotwire
-                }
-                if (position.x2Axis < 0) || (position.y2Axis < 0) || (position.x2Axis > cutterDepth) || (position.y2Axis > cutterHeight) ||
-                   (x < 0) || (y < 0) || (x > cutterDepth) || (y > cutterHeight) {
-                    color = axisColorAlert
-                }
-
-                node.addChildNode(drawLine(x1: x,
-                                           y1: y,
-                                           w1: cutterWidth,
-                                           x2: position.x2Axis,
-                                           y2: position.y2Axis,
-                                           w2: cutterWidth,
-                                           color: color))
-                x = position.x2Axis
-                y = position.y2Axis
-            }
-        }
-        
-        
-        return node
-       
-    }
-
-    private func drawLine(x1:       Double,
-                          y1:       Double,
-                          w1:       Double,
-                          x2:       Double,
-                          y2:       Double,
-                          w2:       Double,
-                          color:    NSColor,
-                          diameter: Double    = 2.0) -> SCNNode {
-
-        let p1 = SCNVector3Make(CGFloat(w1), CGFloat(y1), CGFloat(-x1))
-        let p2 = SCNVector3Make(CGFloat(w2), CGFloat(y2), CGFloat(-x2))
-        
-        let vector                  = SCNVector3(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
-        let distance                = sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z)
-        let midPosition             = SCNVector3 (x:(p1.x + p2.x) / 2, y:(p1.y + p2.y) / 2, z:(p1.z + p2.z) / 2)
-
-        let lineGeometry            = SCNCapsule()
-        lineGeometry.capRadius      = CGFloat(diameter/2)
-        lineGeometry.height         = distance + CGFloat(diameter)
-               
-        lineGeometry.radialSegmentCount = 12
-        lineGeometry.firstMaterial!.diffuse.contents = color
-
-        let lineNode = SCNNode(geometry: lineGeometry)
-        lineNode.position = midPosition
-        lineNode.look (at: p2, up: previewNode.worldUp, localFront: lineNode.worldUp)
-        
-        return lineNode
-    }
-    
-   
-    private func generateFoamBlockeNode(x:            Double,
-                                        y:            Double,
-                                        w:            Double,
-                                        depth:        Double,
-                                        height:       Double,
-                                        width:        Double,
-                                        rotationX:    Double    = 0.0,
-                                        rotationY:    Double    = 0.0,
-                                        rotationW:    Double    = 0.0,
-                                        color:        NSColor,
-                                        edgeColor:    NSColor,
-                                        diameter:     Double    = 2.0) -> SCNNode {
-        
-        var h:          CGFloat
-        var edge:       SCNCapsule
-        var edgeNode:   SCNNode
-        let node        = SCNNode()
-        let color       = color.withAlphaComponent(0.5)
-        
-        // draw the box
-        let box         = SCNBox(width: CGFloat(width),
-                                 height: CGFloat(height),
-                                 length: CGFloat(depth),
-                                 chamferRadius: CGFloat(diameter/2))
-        box.firstMaterial?.diffuse.contents = color
-        node.addChildNode(SCNNode(geometry: box))
-        
-        // long edges
-        h                                       = CGFloat(width)
-        edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
-        edge.radialSegmentCount                 = 12
-        edge.firstMaterial?.diffuse.contents    = edgeColor
-        edgeNode                                = SCNNode(geometry: edge)
-        edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
-        edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
-        edgeNode.eulerAngles.x                  = .pi / 2
-        edgeNode.eulerAngles.y                  = .pi / 2
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
-        edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
-        edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
-        edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
-        node.addChildNode(edgeNode)
-        
-        // short edges
-        h                                       = CGFloat(height)
-        edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
-        edge.radialSegmentCount                 = 12
-        edge.firstMaterial?.diffuse.contents    = edgeColor
-        edgeNode                                = SCNNode(geometry: edge)
-        edgeNode.eulerAngles.y                  = .pi / 2
-        edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
-        edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
-        edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
-        edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
-        edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
-        node.addChildNode(edgeNode)
-        
-        h                                       = CGFloat(depth)
-        edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
-        edge.radialSegmentCount                 = 12
-        edge.firstMaterial?.diffuse.contents    = edgeColor
-        edgeNode                                = SCNNode(geometry: edge)
-        edgeNode.eulerAngles.x                  = .pi / 2
-        edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
-        edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
-        edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
-        edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
-        node.addChildNode(edgeNode)
-        
-        edgeNode                                = edgeNode.clone()
-        edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
-        edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
-        node.addChildNode(edgeNode)
-        
-        node.pivot                              = SCNMatrix4MakeTranslation(CGFloat(-width)/2.0, CGFloat(-height)/2.0, CGFloat(depth)/2.0);
-        node.eulerAngles.y                      = CGFloat(rotationY / 180.0 * .pi)
-        node.eulerAngles.z                      = CGFloat(rotationX / 180.0 * .pi)
-        node.eulerAngles.x                      = CGFloat(-rotationW / 180.0 * .pi)
-        
-        node.position.y                         = CGFloat(y)
-        node.position.z                         = CGFloat(-x)
-        node.position.x                         = CGFloat(w)
-        
-        
-        return node
-    }
 }
 
 
