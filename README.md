@@ -223,6 +223,9 @@ In addition you can import how files from WingHelper
 # Post processing
 Designing the shape of a wing or a fuselage requires in most times an additional step to tell the machine / foam cutter how to produce it. This step is called post processing. It allows you to generate machine executable or interpretable code (gcode) and add machine, tool and material specific information (hot wire temperature, travel speed, position of foam block, …). I wrote a pice of code, do adopt my SketchUp files and my WingHelper Designs to my foam cutter. The code is written in swift for mac os, but the basic ideas can be easily adopted to other languages. All post processing functions are bundled in the class FCalc (FCalc.swift). Interfacing is handled with key to access the values and the labels/descriptions to the values. The values itself are exchanged as Strings, because most of them are changed by user, so all type checking stuff is integrated in FCalc, too. Detailed interface description is available in FCalc.swift.
 
+![postprocessor_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/postprocessor_1.png)
+
+
 [Video: Post processing](https://youtu.be/D0ZCudA9wv8)
 
 ### Settings
@@ -268,3 +271,4 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 [Video: Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
 [Video: Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
 [Video: Post processing merging shapes](https://youtu.be/Z-096iua6jk)
+
