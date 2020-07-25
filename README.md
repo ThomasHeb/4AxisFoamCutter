@@ -33,11 +33,11 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
 - [Working with SketchUp Part 2](https://youtu.be/SIh3zpsxGX4)
 - [Working with SketchUp Part 3](https://youtu.be/uU0HhuviuLE)
-- [Post processing](https://youtu.be/D0ZCudA9wv8)
+- [Post processing Basics](https://youtu.be/D0ZCudA9wv8)
+- [Post processing merging shapes](https://youtu.be/Z-096iua6jk)
 - [Feed speed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
 - [Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
 - [Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
-- [Post processing merging shapes](https://youtu.be/Z-096iua6jk)
 
 
 # Mechanics
@@ -221,16 +221,29 @@ Both paths should have the same number of points and edges. To go for that with 
 In addition you can import how files from WingHelper
 
 # Post processing
-Designing the shape of a wing or a fuselage requires in most times an additional step to tell the machine / foam cutter how to produce it. This step is called post processing. It allows you to generate machine executable or interpretable code (gcode) and add machine, tool and material specific information (hot wire temperature, travel speed, position of foam block, …). I wrote a pice of code, do adopt my SketchUp files and my WingHelper Designs to my foam cutter. The code is written in swift for mac os, but the basic ideas can be easily adopted to other languages. All post processing functions are bundled in the class FCalc (FCalc.swift). Interfacing is handled with key to access the values and the labels/descriptions to the values. The values itself are exchanged as Strings, because most of them are changed by user, so all type checking stuff is integrated in FCalc, too. Detailed interface description is available in FCalc.swift.
+Designing the shape of a wing or a fuselage requires in most times an additional step to tell the machine / foam cutter how to produce it. This step is called post processing. It allows you to generate machine executable or interpretable code (gcode) and add machine, tool and material specific information (hot wire temperature, travel speed, position of foam block, …). I wrote a pice of code, do adopt my SketchUp files and my WingHelper Designs to my foam cutter. The code is written in swift for macOS, but the basic ideas can be easily adopted to other languages. All post processing functions are bundled in the class FCalc (FCalc.swift). Interfacing is handled with key to access the values and the labels/descriptions to the values. The values itself are exchanged as Strings, because most of them are changed by user, so all type checking stuff is integrated in FCalc, too. Detailed interface description is available in FCalc.swift.
 
 ![postprocessor_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/postprocessor_1.png)
 
+### Overview of functions
+- Import shapes from gcode, nc, SkechUp foamcutter.rb, Winghelper how, fcf-projects
+- Export to gcode
+- Load/Save projects as fcf file
+- Move and rotate the shape 
+- Move and rotate the foam block
+- Calculates the movement of the axis
+- Speed optimisation, to keep average speed at the edges of the shape close to target feed speed
+- Merging of different shapes into one cutting job
+- 3D preview and simulation of axis, shape and foam block
 
-[Video: Post processing](https://youtu.be/D0ZCudA9wv8)
+### Check out the tutorial video
+- [Basics](https://youtu.be/D0ZCudA9wv8)
+- [Merging shapes](https://youtu.be/Z-096iua6jk)
+
 
 ### Settings
 - All settings have a unique ID (see SettingsTableKey for all values) for access
-- Reading:
+- Reading a setting:
   - dataTypeForKey(_ key: SettingsTableKey) -> DataType              
     the Datatype of the setting for correct visualisation/layout
   - labelForKey(_ key: SettingsTableKey) -> String                   
@@ -247,14 +260,15 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 - Usage: Generate an array of SettingsTableKey-values to be displayed and catch the content with the functions above
 - All is handled with strings, so no need of type conversion
 
-### Load a file / Save GCode
+### Import a file / export GCode
 - Supported filetypes;
   - gcode, nc: simple gcode wit G00/G0, G01, G1, G90, G91, ...
   - how: Winghelper ICE export with absolute coordinates
-  - loadShapeFromFile(_ file: String) -> Int       
+  - fcf: Foam Cuter File (project) previously saved
+  - importShapeFromFile(_ file: String) -> Int       
     =  0 if ok / != 0 if not ok
 - Save a file in gcode format
-  saveGCodeToFile(_ file: String) -> Int         
+  exportGCodeToFile(_ file: String) -> Int         
   =  0 if ok / != 0 if not ok
 
 ###  Callbacks (FCalcCallback):
@@ -268,9 +282,9 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 ###  Changing Values / Coordinates:
 - optional, see FCalc.swift
 
-[Video: Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
+###  Videos explaining some code insides:
+- [Part 1](https://youtu.be/n6ZeKAKcKlE)
+- [Part 2](https://youtu.be/POwDu0zc9eI)
 
-[Video: Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
 
-[Video: Post processing merging shapes](https://youtu.be/Z-096iua6jk)
 
