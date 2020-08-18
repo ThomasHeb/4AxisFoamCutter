@@ -92,7 +92,7 @@
 //    - Z plus:     D11  
 // 
 //    - if you do not want to use buttons in general, 
-//      set USE_LBUTTONSS to 0, see config.h 
+//      set USE_BUTTONS to 0, see config.h 
 // 
 // Modifications of Hardware:
 //  - cut-off Arduino PIN 10 on Ramps 

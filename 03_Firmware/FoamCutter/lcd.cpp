@@ -57,6 +57,7 @@ typedef struct {
   uint32_t  buttons_image;           // image of the current buttons to be stabilized
   uint8_t   refresh; 
   float     fvalue;
+  float     cutting_start_position[N_AXIS];
 } lcd_t;
 lcd_t lcd_data;
 
@@ -146,6 +147,7 @@ lcd_t lcd_data;
 #define   MENUE_CUTTING_VER_POS             3
 #define   MENUE_CUTTING_VER_NEG             4
 #define   MENUE_CUTTING_LIMIT               5
+#define   MENUE_CUTTING_PREVIOUS_POSITION   6
 #define   MENUE_CUTTING_EXIT_MENUE          MENUE_MAIN_1
 #define   MENUE_CUTTING_EXIT_CURSOR         MENUE_MAIN_1_CUTTING
 
@@ -197,6 +199,11 @@ void lcd_init() {
   lcd_data.buttons_prev               = 0;
   lcd_data.buttons_cnt                = 0;
   lcd_data.refresh                    = 1;
+
+  lcd_data.cutting_start_position[X_AXIS]  = 0;
+  lcd_data.cutting_start_position[Y_AXIS]  = 0;
+  lcd_data.cutting_start_position[U_AXIS]  = 0;
+  lcd_data.cutting_start_position[Z_AXIS]  = 0;
   
   sd_data.errors                      = 0;
   sd_data.stateProcessFile            = 0;
@@ -379,7 +386,7 @@ void lcd_process_menue_main() {
       lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_1_SDCARD);        lcd.print(F("SD-Card"));     
       lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_1_HOTWIRE);       lcd.print(F("Hot wire"));     
       lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_1_FEED);          lcd.print(F("Feed speed"));     
-      lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_1_CUTTING);       lcd.print(F("Cutting"));     
+      lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_1_CUTTING);       lcd.print(F("Slicing"));     
       lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_1_FAN);           lcd.print(F("Fan"));     
       // cursor
       lcd.setFont(FONT_CURSOR_HOR);
@@ -456,7 +463,7 @@ void lcd_process_menue_main() {
       lcd.setCursor(  0, 8); lcd.print(F("Main"));
       // menue items
       lcd.setFont(u8g2_font_helvR08_tr);
-      lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_2_CUTTING);       lcd.print(F("Cutting"));  
+      lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_2_CUTTING);       lcd.print(F("Slicing"));  
       lcd.setCursor(  6, 20 + 12 * MENUE_MAIN_2_FAN);           lcd.print(F("Fan"));     
       
       // cursor
@@ -582,7 +589,7 @@ void lcd_process_menue_cutting() {
       lcd.clearBuffer();
       // title
       lcd.setFont(u8g2_font_helvB08_tr);
-      lcd.setCursor(0, 8);      lcd.print(F("Cutting"));
+      lcd.setCursor(0, 8);      lcd.print(F("Slicing"));
       // menue items
       lcd.setFont(u8g2_font_helvR08_tr);
 
@@ -603,7 +610,9 @@ void lcd_process_menue_cutting() {
         case MENUE_CUTTING_LIMIT:
           lcd.print(F("Set X/Y as max. position?"));
           break;
-        
+        case MENUE_CUTTING_PREVIOUS_POSITION:
+          lcd.print(F("Back to previous position"));
+          break;
         default:
           lcd.print(F("Choose direction?"));
           break;  
@@ -614,6 +623,7 @@ void lcd_process_menue_cutting() {
         case MENUE_CUTTING_VER_POS:
         case MENUE_CUTTING_VER_NEG:
         case MENUE_CUTTING_LIMIT:
+        case MENUE_CUTTING_PREVIOUS_POSITION:
           lcd.setCursor(  6, 32);
           lcd.print(F("Execute?"));     
           lcd.setCursor( 80, 32); 
@@ -646,13 +656,17 @@ void lcd_process_menue_cutting() {
       lcd_data.cursor_id    =  MENUE_CUTTING_VER_NEG;   
       lcd_data.refresh      =  1;     // ... reload
     }
-    else if (lcd_data.buttons_redge & (BTN_ROTARY_UP | BTN_ROTARY_DOWN)) {
+    else if (lcd_data.buttons_redge & (BTN_ROTARY_DOWN)) {
       lcd_data.cursor_id    =  MENUE_CUTTING_LIMIT;   
+      lcd_data.refresh      =  1;     // ... reload
+    }
+    else if (lcd_data.buttons_redge & (BTN_ROTARY_UP)) {
+      lcd_data.cursor_id    =  MENUE_CUTTING_PREVIOUS_POSITION;   
       lcd_data.refresh      =  1;     // ... reload
     }
  #else 
     else if (lcd_data.buttons_redge & BTN_ROTARY_DOWN) {
-      if (lcd_data.cursor_id < MENUE_CUTTING_LIMIT) {
+      if (lcd_data.cursor_id < MENUE_CUTTING_PREVIOUS_POSITION) {
         lcd_data.cursor_id    += 1;
         lcd_data.refresh      =  1;     // ... reload
       }
@@ -668,7 +682,31 @@ void lcd_process_menue_cutting() {
       if (lcd_data.cursor_id ==  MENUE_CUTTING_LIMIT) {
         settings_store_global_setting(SETTINGS_CUTTING_HOR, gc.position[X_AXIS]);
         settings_store_global_setting(SETTINGS_CUTTING_VER, gc.position[Y_AXIS]);
+        lcd_data.refresh        =  1;     // ... to back menu
+        lcd_data.menue_id       =  MENUE_CUTTING_0;   
+        lcd_data.cursor_id      =  MENUE_CUTTING_PREVIOUS_POSITION;
       } 
+      else if (lcd_data.cursor_id ==  MENUE_CUTTING_PREVIOUS_POSITION) {
+        String gc_command;
+        char gc_c[30];
+      
+        gc_command =  "G90F" + String(settings.homing_seek_rate, 0);
+        gc_command.toCharArray(gc_c, 29);
+        report_status_message(gc_execute_line(gc_c));         // switch to Absolute Mode and change speed
+
+        gc_command =  "G1X"  + String(lcd_data.cutting_start_position[X_AXIS], 1);
+        gc_command += "Y"    + String(lcd_data.cutting_start_position[Y_AXIS], 1);
+        gc_command += "U"    + String(lcd_data.cutting_start_position[U_AXIS], 1);
+        gc_command += "Z"    + String(lcd_data.cutting_start_position[Z_AXIS], 1);
+        gc_command.toCharArray(gc_c, 29);
+        report_status_message(gc_execute_line(gc_c));         // move
+        plan_synchronize();                                   // wait until all movements are done
+
+        lcd_data.refresh        =  1;     // ... Cutting menu
+        lcd_data.menue_id       =  MENUE_CUTTING_0;   
+        lcd_data.cursor_id      =  0;
+  
+      }
       else if (    (lcd_data.cursor_id ==  MENUE_CUTTING_HOR_POS) 
                 || (lcd_data.cursor_id ==  MENUE_CUTTING_HOR_NEG) 
                 || (lcd_data.cursor_id ==  MENUE_CUTTING_VER_POS) 
@@ -676,14 +714,23 @@ void lcd_process_menue_cutting() {
         String gc_command;
         char gc_c[30];
 
+        // store position
+        lcd_data.cutting_start_position[X_AXIS]  = gc.position[X_AXIS];
+        lcd_data.cutting_start_position[Y_AXIS]  = gc.position[Y_AXIS];
+        lcd_data.cutting_start_position[U_AXIS]  = gc.position[U_AXIS];
+        lcd_data.cutting_start_position[Z_AXIS]  = gc.position[Z_AXIS];
+
+
         // switch on the hotwire
         if (gc.hotwire == 0) {                              // preheat the hotwire, if it is not on
           report_status_message(gc_execute_line("M3"));     // switch on hotwire
           report_status_message(gc_execute_line("G4P5"));   // Wait for 5 seconds to heat up the hotwire
         }
       
-        report_status_message(gc_execute_line("G90"));      // switch to absolute movements
-        
+        gc_command =  "G90F" + String(settings.default_feed_rate, 0);
+        gc_command.toCharArray(gc_c, 29);
+        report_status_message(gc_execute_line(gc_c));     // switch to Absolute Mode and change speed
+
         switch (lcd_data.cursor_id) {
           case MENUE_CUTTING_HOR_NEG:
             report_status_message(gc_execute_line("G1X0U0"));// move
@@ -712,11 +759,11 @@ void lcd_process_menue_cutting() {
         }
         plan_synchronize();                                   // wait until all movements are done
         report_status_message(gc_execute_line("M5"));         // switch of hotwire     
+        
+        lcd_data.refresh        =  1;     // ... to back menu
+        lcd_data.menue_id       =  MENUE_CUTTING_0;   
+        lcd_data.cursor_id      =  MENUE_CUTTING_PREVIOUS_POSITION;
       }
-         
-      lcd_data.refresh        =  1;     // ... back to main menue
-      lcd_data.menue_id       =  MENUE_CUTTING_EXIT_MENUE;   
-      lcd_data.cursor_id      =  MENUE_CUTTING_EXIT_CURSOR;
     }
     
     lcd_data.buttons_redge        = 0;              // reset all edge indicators
@@ -924,6 +971,11 @@ void lcd_process_menue_position() {
         lcd_data.refresh      =  1;     // ... reload
       }
     } else if (lcd_data.buttons_redge & BTN_ROTARY_PUSH) {
+
+      gc_command =  "F" + String(settings.default_feed_rate, 0);
+      gc_command.toCharArray(gc_c, 19);
+      report_status_message(gc_execute_line(gc_c));     // change speed
+
       if (lcd_data.cursor_id == MENUE_POSITION_SET_HOME) { 
         report_status_message(gc_execute_line("G28.1"));
         lcd_data.refresh      =  1;     // ... reload
@@ -939,44 +991,63 @@ void lcd_process_menue_position() {
         lcd_data.refresh      =  1;     // ... reload
       }
     } else if (lcd_data.buttons_redge & BTN_X_PLUS) {
+
+      gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+      gc_command.toCharArray(gc_c, 19);
+      report_status_message(gc_execute_line(gc_c));     // change speed
+
       gc_command =  "G1X" + gc_step;
       gc_command.toCharArray(gc_c, 19);
-      report_status_message(gc_execute_line("G91"));
       report_status_message(gc_execute_line(gc_c));
       lcd_data.refresh      =  1;     // ... reload
       
     } else if (lcd_data.buttons_redge & BTN_X_MINUS) {
+      gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+      gc_command.toCharArray(gc_c, 19);
+      report_status_message(gc_execute_line(gc_c));     // change speed
+
       gc_command =  "G1X-" + gc_step;
       gc_command.toCharArray(gc_c, 19);
-      report_status_message(gc_execute_line("G91"));
       report_status_message(gc_execute_line(gc_c));
       lcd_data.refresh      =  1;     // ... reload
       
     } else if (lcd_data.buttons_redge & BTN_Y_PLUS) {
+      gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+      gc_command.toCharArray(gc_c, 19);
+      report_status_message(gc_execute_line(gc_c));     // change speed
+      
       gc_command =  "G1Y" + gc_step;
       gc_command.toCharArray(gc_c, 19);
-      report_status_message(gc_execute_line("G91"));
       report_status_message(gc_execute_line(gc_c));
       lcd_data.refresh      =  1;     // ... reload
       
     } else if (lcd_data.buttons_redge & BTN_Y_MINUS) {
+      gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+      gc_command.toCharArray(gc_c, 19);
+      report_status_message(gc_execute_line(gc_c));     // change speed
+
       gc_command =  "G1Y-" + gc_step;
       gc_command.toCharArray(gc_c, 19);
-      report_status_message(gc_execute_line("G91"));
       report_status_message(gc_execute_line(gc_c));
       lcd_data.refresh      =  1;     // ... reload
       
     } else if (lcd_data.buttons_redge & BTN_U_PLUS) {
+      gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+      gc_command.toCharArray(gc_c, 19);
+      report_status_message(gc_execute_line(gc_c));     // change speed
+
       gc_command =  "G1U" + gc_step;
       gc_command.toCharArray(gc_c, 19);
-      report_status_message(gc_execute_line("G91"));
       report_status_message(gc_execute_line(gc_c));
       lcd_data.refresh      =  1;     // ... reload
       
     } else if (lcd_data.buttons_redge & BTN_U_MINUS) {
+      gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+      gc_command.toCharArray(gc_c, 19);
+      report_status_message(gc_execute_line(gc_c));     // change speed
+
       gc_command =  "G1U-" + gc_step;
       gc_command.toCharArray(gc_c, 19);
-      report_status_message(gc_execute_line("G91"));
       report_status_message(gc_execute_line(gc_c));
       lcd_data.refresh      =  1;     // ... reload
       
@@ -988,9 +1059,12 @@ void lcd_process_menue_position() {
       lcd_data.refresh      =  1;     // ... reload
       
     } else if (lcd_data.buttons_redge & BTN_Z_MINUS) {
+      gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+      gc_command.toCharArray(gc_c, 19);
+      report_status_message(gc_execute_line(gc_c));     // change speed
+
       gc_command =  "G1Z-" + gc_step;
       gc_command.toCharArray(gc_c, 19);
-      report_status_message(gc_execute_line("G91"));
       report_status_message(gc_execute_line(gc_c));
       lcd_data.refresh      =  1;     // ... reload
       
@@ -1008,7 +1082,10 @@ void lcd_process_menue_position() {
           lcd_data.refresh      =  1;     // ... reload
         }
       } else {
-                                                              report_status_message(gc_execute_line("G91"));
+        gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+        gc_command.toCharArray(gc_c, 19);
+        report_status_message(gc_execute_line(gc_c));     // change speed
+
         if (lcd_data.cursor_id == MENUE_POSITION_X01MM)       report_status_message(gc_execute_line("G1X-0.1"));
         if (lcd_data.cursor_id == MENUE_POSITION_X1MM)        report_status_message(gc_execute_line("G1X-1"));
         if (lcd_data.cursor_id == MENUE_POSITION_X10MM)       report_status_message(gc_execute_line("G1X-10"));
@@ -1036,7 +1113,10 @@ void lcd_process_menue_position() {
           lcd_data.refresh      =  1;     // ... reload
         }
       } else {
-                                                              report_status_message(gc_execute_line("G91"));
+        gc_command =  "G91F" + String(settings.default_feed_rate, 0);
+        gc_command.toCharArray(gc_c, 19);
+        report_status_message(gc_execute_line(gc_c));     // change speed
+        
         if (lcd_data.cursor_id == MENUE_POSITION_X01MM)       report_status_message(gc_execute_line("G1X0.1"));
         if (lcd_data.cursor_id == MENUE_POSITION_X1MM)        report_status_message(gc_execute_line("G1X1"));
         if (lcd_data.cursor_id == MENUE_POSITION_X10MM)       report_status_message(gc_execute_line("G1X10"));
@@ -1065,7 +1145,9 @@ void lcd_process_menue_position() {
         report_status_message(gc_execute_line("G28"));
         lcd_data.refresh      =  1;     // ... reload
       } else if (lcd_data.cursor_id == MENUE_POSITION_GOTO_ZERO) { 
-        report_status_message(gc_execute_line("G90"));
+        gc_command =  "G90F" + String(settings.default_feed_rate, 0);
+        gc_command.toCharArray(gc_c, 19);
+        report_status_message(gc_execute_line(gc_c));     // change speed
         report_status_message(gc_execute_line("G1X0Y0U0Z0"));
         lcd_data.refresh      =  1;     // ... reload
       } else if (lcd_data.cursor_id == MENUE_POSITION_SET_ZERO) { 
@@ -1273,7 +1355,7 @@ void lcd_process_menue_feed() {
       gc_command.toCharArray(gc_c, 29);
       report_status_message(gc_execute_line(gc_c));     // change speed
         
-      lcd_data.refresh      =  1;     // ... reload
+      lcd_data.refresh        =  1;     // ... reload
       
       lcd_data.refresh        =  1;     // ... back to main menue
       lcd_data.menue_id       =  MENUE_FEED_EXIT_MENUE;   
