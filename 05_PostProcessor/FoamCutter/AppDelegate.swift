@@ -23,10 +23,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                       .shapeRotation,
                       .shapeX,
                       .shapeY,
-                      .shapeMirror,
-                      .shapeFlip,
+                      .shapeChangeAxis,
+                      .shapeMirrorHorizontal,
+                      .shapeMirrorVertical,
+                      .shapeReverse,
                       .spacer,
                       .block,
+                      .blockMaterialComment,
                       .blockWidth,
                       .blockHeight,
                       .blockDepth,
@@ -42,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                       .fastPretravel,
                       .maxFeedSpeed,
                       .spacer,
+                      .hotwireSettingComment,
                       .hotwirePower,
                       .hotwirePreheat,
                       .spacer,
@@ -51,11 +55,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                       .showShapeGraph,
                       .showAxisGraph,
                       .showCutterGraph,
+                      .simulationSpeed,
+                      .previewDiameter
                     ]
 
-
+    var viewController:             ViewController? = nil
+    
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Insert code here to initialize your application
+        
+        // ToDo
+        viewController = NSApplication.shared.mainWindow?.windowController?.contentViewController as? ViewController
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
@@ -85,8 +95,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } else {
             // User clicked on "Cancel"
-            return
         }
+        
     }
     @IBAction func onExport(_ sender: Any) {
         let dialog = NSSavePanel();
@@ -95,7 +105,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         dialog.showsResizeIndicator    = true;
         dialog.showsHiddenFiles        = false;
         dialog.canCreateDirectories    = false;
-        dialog.nameFieldStringValue    = (fcalc.name ?? "unknown") + ".gcode"
+        dialog.nameFieldStringValue    = (fcalc.projectName ?? "unknown") + ".gcode"
         dialog.allowedFileTypes        = ["gcode"];
 
         if (dialog.runModal() == NSApplication.ModalResponse.OK) {
@@ -107,7 +117,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } else {
             // User clicked on "Cancel"
-            return
         }
     }
     private var filename:   String?    = nil
@@ -137,7 +146,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } else {
             // User clicked on "Cancel"
-            return
         }
     }
     @IBAction func onSaveAs(_ sender: Any) {
@@ -147,7 +155,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         dialog.showsResizeIndicator    = true;
         dialog.showsHiddenFiles        = false;
         dialog.canCreateDirectories    = false;
-        dialog.nameFieldStringValue    = (fcalc.name ?? "unknown") + ".fcf"
+        dialog.nameFieldStringValue    = (fcalc.projectName ?? "unknown") + ".fcf"
         dialog.allowedFileTypes        = fcalc.allowedLoadFileTypes;
 
         if (dialog.runModal() == NSApplication.ModalResponse.OK) {
@@ -162,7 +170,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } else {
             // User clicked on "Cancel"
-            return
         }
     }
     @IBAction func onSave(_ sender: Any) {
@@ -183,8 +190,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @IBAction func onStop(_ sender: Any) {
         fcalc.stop()
     }
-    @IBAction func onMerge(_ sender: Any) {
-        _ = fcalc.merge()
+    @IBAction func onMergeBefore(_ sender: Any) {
+        _ = fcalc.merge(.before)
+    }
+    @IBAction func onMergeAfter(_ sender: Any) {
+        _ = fcalc.merge(.after)
     }
     @IBAction func onDiscard(_ sender: Any) {
        _ = fcalc.discard()

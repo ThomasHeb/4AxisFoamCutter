@@ -6,6 +6,10 @@ import SwiftUI
 
 class ViewController: NSViewController, FCalcCallback {
     
+    
+    
+    
+    
     var     appDelegate:    AppDelegate!
     var     fcalc:          FCalc!
     
@@ -17,16 +21,17 @@ class ViewController: NSViewController, FCalcCallback {
         fcalc           = appDelegate.fcalc
         // callback is performed here
         fcalc.callback  = self
+        
        
     }
     
-    @IBOutlet weak var settingsTableView: NSTableView!
-    @IBOutlet weak var positionsTableViewHeader: NSTableHeaderView!
-    @IBOutlet weak var positionsTableView: NSTableView!
-    @IBOutlet var preview:       SCNView!
-    var           scnPreview:    SCNScene!
-    
-    
+    @IBOutlet weak var settingsTableView:                   NSTableView!
+    @IBOutlet weak var positionsTableViewHeader:            NSTableHeaderView!
+    @IBOutlet weak var positionsTableView:                  NSTableView!
+    @IBOutlet var preview:                                  SCNView!
+    var           scnPreview:                               SCNScene!
+    @IBOutlet weak var statusText:                          NSTextField!
+    var statusTextTimer:                                    Timer?              = nil
       
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,6 +55,11 @@ class ViewController: NSViewController, FCalcCallback {
       // ToDo only for testing
         preview.showsStatistics = true
         
+        statusText.stringValue  = ""
+    }
+    override func viewWillAppear() {
+        // set title wit no project name
+        updateProjectName(fcalc.projectName)
     }
 
     
@@ -106,8 +116,30 @@ class ViewController: NSViewController, FCalcCallback {
     func updateSettingsTableView() {
         settingsTableView.reloadData()
     }
+    func updateProjectName(_ projectName: String?) {
+        var title = "Foam Cutter"
+        if let projectName = projectName {
+            title += " - " + projectName
+        }
+        self.view.window?.title = title
+    }
+    func updateStatusText(_ statusText: String?) {
+        statusTextTimer?.invalidate()
+        statusTextTimer = nil
+        
+        guard let statusText = statusText else {
+            self.statusText.stringValue = ""
+            return
+        }
+        
+        self.statusText.stringValue = statusText
+        statusTextTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { timer in
+            self.statusText.stringValue = ""
+        }
+    }
     
-    // Buttons
+    // =========================================================================================
+    // MARK: - Buttons
     
     @IBAction func setCameraTop(_ sender: Any) {
         // delete the user temporary camera

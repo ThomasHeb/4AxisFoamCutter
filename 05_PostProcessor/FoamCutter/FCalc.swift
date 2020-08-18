@@ -93,7 +93,7 @@ import AppKit
 //
 // 2020-07-22   General:    First release and upload to github
 // 2020-07-24   General:    Store/load settings from registry
-//              Preview:    Set caamera to predefined poitions
+//              Preview:    Set camera to predefined poitions
 //              General:    Import/export functions renamed
 //              General:    Restructured Programm FCalc to App
 //              Parameter:  Simulation speed factor added
@@ -101,12 +101,23 @@ import AppKit
 //              General:    Load/save/new added
 //              General:    Import and load allows a merge
 //              General:    Merging of two shapes / Discard of merge
-//
+// 2020-08-18   Shape:      Reverse shape added
+//              General:    Merging after/before added
+//              Preview:    Diameter of cutting lines as parameter
+//              General:    Load optimized to use optional json decoding, to be compatible if value is not stored
+//              General:    Handling of projectName optimized), callback if changed
+//              General:    Statustext is generated and passed via callback
+//              General:    horizontal/vertiacal mirroring added
+//              General:    Error in travel speed with disabled speed optimization solved
+//              General:    in case of speed calculation less then target speed, taget speed is used
+//              General:    added comment for hotwire setting and foam material
 
 protocol FCalcCallback {
     func updatePositionsTableView(_ atIndex: Int?)
     func updatePreview(_ node: SCNNode)
     func updateSettingsTableView()
+    func updateProjectName(_ projectName: String?)
+    func updateStatusText(_ statusText: String?)
 }
 
 
@@ -141,8 +152,10 @@ class FCalc {
         case pretravelSpeed
         case hotwirePower
         case hotwirePreheat
+        case hotwireSettingComment
   
         case block
+        case blockMaterialComment
         case blockWidth
         case blockHeight
         case blockDepth
@@ -157,8 +170,10 @@ class FCalc {
         case shapeRotation
         case shapeX
         case shapeY
-        case shapeMirror
-        case shapeFlip
+        case shapeChangeAxis
+        case shapeMirrorHorizontal
+        case shapeMirrorVertical
+        case shapeReverse
         
         case preview
         case showCutterGraph
@@ -167,7 +182,7 @@ class FCalc {
         case showShapeGraph
         case showShapeCutGraph
         case simulationSpeed
-        
+        case previewDiameter
         
         var description : String {                          // String IDs for storing in Registry
             switch self {
@@ -205,8 +220,8 @@ class FCalc {
             case .shapeRotation:            return "29"
             case .shapeX:                   return "30"
             case .shapeY:                   return "31"
-            case .shapeMirror:              return "32"
-            case .shapeFlip:                return "33"
+            case .shapeChangeAxis:          return "32"
+            case .shapeMirrorHorizontal:    return "33"
                   
             case .preview:                  return "34"
             case .showCutterGraph:          return "35"
@@ -216,6 +231,13 @@ class FCalc {
             case .showShapeCutGraph:        return "39"
                 
             case .simulationSpeed:          return "40"
+            case .shapeReverse:             return "41"
+            case .previewDiameter:          return "42"
+            case .shapeMirrorVertical:      return "43"
+                
+            case .hotwireSettingComment:    return "44"
+            case .blockMaterialComment:     return "45"
+            
             }
         }
     }
@@ -273,22 +295,35 @@ class FCalc {
           .shapeRotation,
           //.shapeX,
           //.shapeY,
-          //.shapeMirror,
-          //.shapeFlip,
-          
+          //.shapeChangeAxis,
+          //.shapeMirrorHorizontal,
+          //.shapeMirrorVertical,
+          //.shapeReverse,
+            
           .showCutterGraph,
           .showAxisGraph,
           .showBlockGraph,
           .showShapeGraph,
           .showShapeCutGraph,
             
-          .simulationSpeed
+          .simulationSpeed,
+          .previewDiameter,
+          
+          .hotwireSettingComment,
+          .blockMaterialComment
+            
         ]
       
-    public var      name:                       String?                 = nil
-    public var      file:                       String?                 = nil
-    public var      allowedImportFileTypes                              = ["how","gcode", "nc", "fcf"]
-    public var      allowedLoadFileTypes                                = ["fcf"]
+    private(set) var    projectName:              String?                 = nil {
+        didSet {
+            if let f = callback?.updateProjectName(_:) {
+                f(self.projectName)
+            }
+        }
+    }
+    private var         file:                     String?                 = nil
+    private(set) var    allowedImportFileTypes                            = ["how","gcode", "nc", "fcf"]
+    private(set) var    allowedLoadFileTypes                              = ["fcf"]
     
     private class FCalcData: Codable {
         // Achsenlabels für GCode export
@@ -310,14 +345,17 @@ class FCalc {
         var         blockSpacingFront:          Double                  = 0.0
         var         blockSpacingUnder:          Double                  = 0.0
         var         blockRotation:              Double                  = 0.0
+        var         blockMaterialComment:       String                  = ""
         // Shape Position Correction
         var         shapeWidth:                 Double                  = 500.0
         var         shapeSpacingLeft:           Double                  = 100.0
         var         shapeRotation:              Double                  = 0.0
         var         shapeX:                     Double                  = 0.0
         var         shapeY:                     Double                  = 0.0
-        var         shapeMirror:                Bool                    = false
-        var         shapeFlip:                  Bool                    = false
+        var         shapeChangeAxis:            Bool                    = false
+        var         shapeMirrorHorizontal:      Bool                    = false
+        var         shapeMirrorVertical:        Bool                    = false
+        var         shapeReverse:               Bool                    = false
         // Hotwire and Speed Adjustment
         var         targetFeedSpeed:            UInt                    = 300   // mm/min
         var         feedSpeedCorrection:        Bool                    = true
@@ -326,6 +364,7 @@ class FCalc {
         var         hotwirePreheat:             UInt                    = 5
         var         fastPretravel:              Bool                    = true
         var         pretravelSpeed:             UInt                    = 1000  // mm/min
+        var         hotwireSettingComment:      String                  = ""
         
         var         positions:                  [CuttingPosition]       = Array()
         
@@ -336,28 +375,26 @@ class FCalc {
             new.labelX2Axis             = self.labelX2Axis
             new.labelY2Axis             = self.labelY2Axis
             new.gcodeDecimals           = self.gcodeDecimals
-            // Cutter Dimension
             new.cutterWidth             = self.cutterWidth
             new.cutterHeight            = self.cutterHeight
             new.cutterDepth             = self.cutterDepth
-             // Foam Block Dimensions
             new.blockWidth              = self.blockWidth
             new.blockHeight             = self.blockHeight
             new.blockDepth              = self.blockDepth
-            // Foam Block Position
             new.blockSpacingLeft        = self.blockSpacingLeft
             new.blockSpacingFront       = self.blockSpacingFront
             new.blockSpacingUnder       = self.blockSpacingUnder
             new.blockRotation           = self.blockRotation
-            // Shape Position Correction
+            new.blockMaterialComment    = self.blockMaterialComment
             new.shapeWidth              = self.shapeWidth
             new.shapeSpacingLeft        = self.shapeSpacingLeft
             new.shapeRotation           = self.shapeRotation
             new.shapeX                  = self.shapeX
             new.shapeY                  = self.shapeY
-            new.shapeMirror             = self.shapeMirror
-            new.shapeFlip               = self.shapeFlip
-            // Hotwire and Speed Adjustment
+            new.shapeChangeAxis         = self.shapeChangeAxis
+            new.shapeMirrorHorizontal   = self.shapeMirrorHorizontal
+            new.shapeMirrorVertical     = self.shapeMirrorVertical
+            new.shapeReverse            = self.shapeReverse
             new.targetFeedSpeed         = self.targetFeedSpeed
             new.feedSpeedCorrection     = self.feedSpeedCorrection
             new.maxFeedSpeed            = self.maxFeedSpeed
@@ -365,9 +402,51 @@ class FCalc {
             new.hotwirePreheat          = self.hotwirePreheat
             new.fastPretravel           = self.fastPretravel
             new.pretravelSpeed          = self.pretravelSpeed
-            
+            new.hotwireSettingComment   = self.hotwireSettingComment
             new.positions               = self.positions
+            
             return new
+        }
+        init() {
+            
+        }
+        required init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+    
+            if let v = try container.decodeIfPresent(String.self, forKey: .labelX1Axis)         {   self.labelX1Axis            = v    }
+            if let v = try container.decodeIfPresent(String.self, forKey: .labelY1Axis)         {   self.labelY1Axis            = v    }
+            if let v = try container.decodeIfPresent(String.self, forKey: .labelX2Axis)         {   self.labelX2Axis            = v    }
+            if let v = try container.decodeIfPresent(String.self, forKey: .labelY2Axis)         {   self.labelY2Axis            = v    }
+            if let v = try container.decodeIfPresent(UInt.self, forKey: .gcodeDecimals)         {   self.gcodeDecimals          = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .cutterWidth)         {   self.cutterWidth            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .cutterHeight)        {   self.cutterHeight           = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .cutterDepth)         {   self.cutterDepth            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .blockWidth)          {   self.blockWidth             = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .blockHeight)         {   self.blockHeight            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .blockDepth)          {   self.blockDepth             = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .blockSpacingLeft)    {   self.blockSpacingLeft       = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .blockSpacingFront)   {   self.blockSpacingFront      = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .blockSpacingUnder)   {   self.blockSpacingUnder      = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .blockRotation)       {   self.blockRotation          = v    }
+            if let v = try container.decodeIfPresent(String.self, forKey: .blockMaterialComment){   self.blockMaterialComment   = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .shapeWidth)          {   self.shapeWidth             = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .shapeSpacingLeft)    {   self.shapeSpacingLeft       = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .shapeRotation)       {   self.shapeRotation          = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .shapeX)              {   self.shapeX                 = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .shapeY)              {   self.shapeY                 = v    }
+            if let v = try container.decodeIfPresent(Bool.self, forKey: .shapeChangeAxis)       {   self.shapeChangeAxis        = v    }
+            if let v = try container.decodeIfPresent(Bool.self, forKey: .shapeMirrorHorizontal) {   self.shapeMirrorHorizontal  = v    }
+            if let v = try container.decodeIfPresent(Bool.self, forKey: .shapeMirrorVertical)   {   self.shapeMirrorVertical    = v    }
+            if let v = try container.decodeIfPresent(Bool.self, forKey: .shapeReverse)          {   self.shapeReverse           = v    }
+            if let v = try container.decodeIfPresent(UInt.self, forKey: .targetFeedSpeed)       {   self.targetFeedSpeed        = v    }
+            if let v = try container.decodeIfPresent(Bool.self, forKey: .feedSpeedCorrection)   {   self.feedSpeedCorrection    = v    }
+            if let v = try container.decodeIfPresent(UInt.self, forKey: .maxFeedSpeed)          {   self.maxFeedSpeed           = v    }
+            if let v = try container.decodeIfPresent(UInt.self, forKey: .hotwirePower)          {   self.hotwirePower           = v    }
+            if let v = try container.decodeIfPresent(UInt.self, forKey: .hotwirePreheat)        {   self.hotwirePreheat         = v    }
+            if let v = try container.decodeIfPresent(Bool.self, forKey: .fastPretravel)         {   self.fastPretravel          = v    }
+            if let v = try container.decodeIfPresent(UInt.self, forKey: .pretravelSpeed)        {   self.pretravelSpeed         = v    }
+            if let v = try container.decodeIfPresent(String.self, forKey: .hotwireSettingComment){  self.hotwireSettingComment  = v    }
+            if let v = try container.decodeIfPresent([CuttingPosition].self, forKey: .positions){   self.positions              = v    }
         }
         
     }
@@ -381,6 +460,7 @@ class FCalc {
     private var     showBlockGraph:             Bool                    = true
     private var     showShapeCutGraph:          Bool                    = true
     private var     simulationSpeed:            Double                  = 10.0
+    private var     previewDiameter:            Double                  = 2.0
         
     // Scene Nodes for Preview
     private var previewNode:                    SCNNode                 = SCNNode()
@@ -477,6 +557,34 @@ class FCalc {
             new.gcode           = self.gcode
             return new
         }
+        init() {
+                
+        }
+        required init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+              
+            if let v = try container.decodeIfPresent(Double.self, forKey: .x1Shape)             {   self.x1Shape            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .y1Shape)             {   self.y1Shape            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .w1Shape)             {   self.w1Shape            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .x2Shape)             {   self.x2Shape            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .y2Shape)             {   self.y2Shape            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .w2Shape)             {   self.w2Shape            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .x1Axis)              {   self.x1Axis             = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .y1Axis)              {   self.y1Axis             = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .x2Axis)              {   self.x2Axis             = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .y2Axis)              {   self.y2Axis             = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .x1Block)             {   self.x1Block            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .y1Block)             {   self.y1Block            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .w1Block)             {   self.w1Block            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .x2Block)             {   self.x2Block            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .y2Block)             {   self.y2Block            = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .w2Block)             {   self.w2Block            = v    }
+            if let v = try container.decodeIfPresent(Bool.self, forKey: .hotwire)               {   self.hotwire            = v    }
+            if let v = try container.decodeIfPresent(Bool.self, forKey: .pretravel)             {   self.pretravel          = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .feedSpeed)           {   self.feedSpeed          = v    }
+            if let v = try container.decodeIfPresent(String.self, forKey: .gcode)               {   self.gcode              = v    }
+        }
+            
     }
     
     init() {
@@ -493,8 +601,10 @@ class FCalc {
         data.shapeX                 = 0.0
         data.shapeY                 = 0.0
         data.shapeRotation          = 0.0
-        data.shapeMirror            = false
-        data.shapeFlip              = false
+        data.shapeChangeAxis        = false
+        data.shapeMirrorHorizontal  = false
+        data.shapeMirrorVertical    = false
+        data.shapeReverse           = false
         data.blockRotation          = 0.0
         
         stop()      // stop the simulation
@@ -503,6 +613,7 @@ class FCalc {
     }
     public func importShapeFromFile(_ file: String?) -> Int {
         guard let file = file else {
+            requestUpdateStatusText("Invalid filename or path.")
             return -1;
         }
         
@@ -521,6 +632,7 @@ class FCalc {
         errno = 0
         if freopen(file, "r", stdin) == nil {
             perror(file)
+            requestUpdateStatusText("Unable to open file.")
             return -1
         }
         
@@ -532,7 +644,7 @@ class FCalc {
         }
         if self.file == nil {
             self.file       = file      // store filename incl path
-            self.name       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
+            self.projectName       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
         }
         initShape()
         
@@ -555,7 +667,8 @@ class FCalc {
                                  w2: data.shapeWidth)
                 }
             }
-            NSLog("File geladen: " + (self.name ?? ""))
+            
+        
         } else if (fileExt == "gcode") || (fileExt == "GCODE") || (fileExt == "nc") || (fileExt == "NC") {
             var x:                  Double = 0.0
             var y:                  Double = 0.0
@@ -739,15 +852,16 @@ class FCalc {
                     
                 }
             }
-            NSLog("File geladen: " + (self.name ?? ""))
             
         } else {
+            requestUpdateStatusText("Unable to import file. Unkown extension or format.")
             return -1
         }
         // alles neu berechnen
         _ = calculateShape()
         // graph aufbauen
         _ = generatePreview()
+        requestUpdateStatusText("File " + URL(fileURLWithPath: file).lastPathComponent  + " imported.")
         return 0
     }
     
@@ -771,6 +885,7 @@ class FCalc {
     }
     public func exportGCodeToFile(_ file: String?) -> Int {
         guard let file = file else {
+            requestUpdateStatusText("Invalid filename or path.")
             return -1;
         }
         guard data.positions.count > 0 else {
@@ -779,22 +894,25 @@ class FCalc {
         }
         
         guard generateGCode() == 0 else {
+            requestUpdateStatusText("Unable to generate gcode for line items.")
             return -1
         }
         
         self.file       = file      // store filename incl path
-        self.name       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
+        self.projectName       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
                 
          
         // Schreibe in ie Header alle benötigten Einstellung
         var info: String
         
         info = "; FoamCutter G-Code";                                                                       writeLine(info, toFile: file, firstLine: true)
-        info = "; ";                                                                                        writeLine(info, toFile: file)
-        info = "; "    + labelForKey(.cutter)            + "  " + valueForKey(.cutter);                     writeLine(info, toFile: file)
+        info = "; .";                                                                                       writeLine(info, toFile: file)
+        info = "; "    + labelForKey(.cutter)            + "  " +  valueForKey(.cutter);                    writeLine(info, toFile: file)
         info = "; "    + labelForKey(.cutterWidth)       + "  " +  valueForKey(.cutterWidth);               writeLine(info, toFile: file)
-        info = "; ";                                                                                        writeLine(info, toFile: file)
+        info = "; "    + labelForKey(.hotwireSettingComment) + "  " +  valueForKey(.hotwireSettingComment); writeLine(info, toFile: file)
+        info = "; .";                                                                                       writeLine(info, toFile: file)
         info = "; "    + labelForKey(.block)             + "  " +  valueForKey(.block);                     writeLine(info, toFile: file)
+        info = ";    " + labelForKey(.blockMaterialComment) + "  " +  valueForKey(.blockMaterialComment);   writeLine(info, toFile: file)
         info = ";    " + labelForKey(.blockWidth)        + "  " +  valueForKey(.blockWidth);                writeLine(info, toFile: file)
         info = ";    " + labelForKey(.blockHeight)       + "  " +  valueForKey(.blockHeight);               writeLine(info, toFile: file)
         info = ";    " + labelForKey(.blockDepth)        + "  " +  valueForKey(.blockDepth);                writeLine(info, toFile: file)
@@ -802,7 +920,7 @@ class FCalc {
         info = ";    " + labelForKey(.blockSpacingFront) + "  " +  valueForKey(.blockSpacingFront);         writeLine(info, toFile: file)
         info = ";    " + labelForKey(.blockSpacingUnder) + "  " +  valueForKey(.blockSpacingUnder);         writeLine(info, toFile: file)
         info = ";    " + labelForKey(.blockRotation)     + "  " +  valueForKey(.blockRotation);             writeLine(info, toFile: file)
-        info = "; ";                                                                                        writeLine(info, toFile: file)
+        info = "; .";                                                                                       writeLine(info, toFile: file)
         
         
         // XY Plane / mm / Feedrate as unit per minut
@@ -826,7 +944,8 @@ class FCalc {
         writeLine(info, toFile: file)
          
         
-        NSLog("File exportiert: " + (self.name ?? ""))
+        NSLog("File exportiert: " + (self.projectName ?? ""))
+        requestUpdateStatusText("File " + URL(fileURLWithPath: file).lastPathComponent  + " exported.")
         return 0
     }
     private func generateGCode() -> Int {
@@ -844,6 +963,7 @@ class FCalc {
         if targetFeedSpeed > data.maxFeedSpeed {
             targetFeedSpeed = data.maxFeedSpeed
         }
+        
         
         for position in data.positions {
             // erzeuge den G-Code
@@ -892,7 +1012,7 @@ class FCalc {
             position.y2Shape    +=  y
         }
     }
-    private func mirrorShape() {
+    private func changeAxis() {
         var mem: Double
         var minW: Double        = data.positions.first?.w1Shape  ?? 0.0
         var maxW: Double        = data.positions.first?.w1Shape  ?? 0.0
@@ -916,7 +1036,7 @@ class FCalc {
             position.w2Shape    = maxW - (mem - minW)
         }
     }
-    private func flipShape() {
+    private func mirrorHorizontal() {
         var mem: Double
         var minX: Double        = data.positions.first?.x1Shape  ?? 0.0
         var minY: Double        = data.positions.first?.y1Shape  ?? 0.0
@@ -935,27 +1055,78 @@ class FCalc {
             if position.y2Shape < minY        { minY = position.y2Shape }
         }
         
-        // flipp and store into new array reverse sorted
-        var flippedPositions: [CuttingPosition] = []
+        // mirror and store into new array reverse sorted
+        var mirroredPositions: [CuttingPosition] = []
         for position in data.positions {
-            mem                 = maxX - position.x1Shape
-            position.x1Shape    = minX + mem
-            mem                 = maxX - position.x2Shape
-            position.x2Shape    = minX + mem
+            //mem                 = maxX - position.x1Shape
+            //position.x1Shape    = minX + mem
+            //mem                 = maxX - position.x2Shape
+            //position.x2Shape    = minX + mem
             mem                 = maxY - position.y1Shape
             position.y1Shape    = minY + mem
             mem                 = maxY - position.y2Shape
             position.y2Shape    = minY + mem
             
-            flippedPositions.insert(position, at: 0)
+            mirroredPositions.insert(position, at: 0)
         }
         
         // remove old positions
-        data.positions.removeAll()       // TODO keep added/pretravel,... in mind
+        data.positions.removeAll()
         
         // add the flipped positions
-        data.positions   += flippedPositions
+        data.positions   += mirroredPositions
         
+    }
+    private func mirrorVertical() {
+        var mem: Double
+        var minX: Double        = data.positions.first?.x1Shape  ?? 0.0
+        var minY: Double        = data.positions.first?.y1Shape  ?? 0.0
+        var maxX: Double        = data.positions.first?.x1Shape  ?? 0.0
+        var maxY: Double        = data.positions.first?.y1Shape  ?? 0.0
+        
+        // find min and max dimensions
+        for position in data.positions {
+            if position.x1Shape > maxX        { maxX = position.x1Shape }
+            if position.x2Shape > maxX        { maxX = position.x2Shape }
+            if position.y1Shape > maxY        { maxY = position.y1Shape }
+            if position.y2Shape > maxY        { maxY = position.y2Shape }
+            if position.x1Shape < minX        { minX = position.x1Shape }
+            if position.x2Shape < minX        { minX = position.x2Shape }
+            if position.y1Shape < minY        { minY = position.y1Shape }
+            if position.y2Shape < minY        { minY = position.y2Shape }
+        }
+        
+        // mirror and store into new array reverse sorted
+        var mirroredPositions: [CuttingPosition] = []
+        for position in data.positions {
+            mem                 = maxX - position.x1Shape
+            position.x1Shape    = minX + mem
+            mem                 = maxX - position.x2Shape
+            position.x2Shape    = minX + mem
+            //mem                 = maxY - position.y1Shape
+            //position.y1Shape    = minY + mem
+            //mem                 = maxY - position.y2Shape
+            //position.y2Shape    = minY + mem
+            
+            mirroredPositions.append(position) // insert(position, at: 0)
+        }
+        
+        // remove old positions
+        data.positions.removeAll()
+        
+        // add the flipped positions
+        data.positions   += mirroredPositions
+        
+    }
+    private func reverseShape() {
+        var reversePositions: [CuttingPosition] = []
+        for position in data.positions {
+            reversePositions.insert(position, at: 0)
+        }
+        // remove old positions
+        data.positions.removeAll()
+        // add the reversed positions
+        data.positions   += reversePositions
     }
     // MARK: - Shape calculation
     private func calculateShape() -> Int {
@@ -1105,17 +1276,29 @@ class FCalc {
         if data.fastPretravel == true,
             position.pretravel == true {
             position.feedSpeed      = Double(data.pretravelSpeed)
-        }
-        if let speed = position.feedSpeed {
-            if speed > Double(data.maxFeedSpeed) {
-                position.feedSpeed      = Double(data.maxFeedSpeed)
-            }
         } else {
-            position.feedSpeed      = Double(data.targetFeedSpeed)
+            if let speed = position.feedSpeed {
+                if speed > Double(data.maxFeedSpeed) {
+                    position.feedSpeed      = Double(data.maxFeedSpeed)
+                }
+            } else {
+                position.feedSpeed      = Double(data.targetFeedSpeed)
+            }
+            if data.feedSpeedCorrection == false {
+                position.feedSpeed      = Double(data.targetFeedSpeed)
+            }
+        }
+        if (position.feedSpeed ?? 0)  < Double(data.targetFeedSpeed) {
+            position.feedSpeed = Double(data.targetFeedSpeed)
         }
         
     }
-    public func merge() -> Int {
+    public enum MergeType: Int {
+        case before
+        case after
+    }
+    
+    public func merge(_ mergeType: MergeType = .before) -> Int {
         guard let mergingData = self.mergingData,
                   mergingData.positions.count > 0,
                   data.positions.count > 0 else {
@@ -1139,8 +1322,14 @@ class FCalc {
             position.w1Shape        = position.w1Block - mergingData.shapeSpacingLeft
             position.w2Shape        = position.w2Block - mergingData.shapeSpacingLeft
         }
-        var positions               = data.positions
-        positions                   += mergingData.positions
+        var positions:              [CuttingPosition]
+        if mergeType == .before {
+            positions               =  data.positions
+            positions               += mergingData.positions
+        } else {
+            positions               =  mergingData.positions
+            positions               += data.positions
+        }
         initShape()
         data.shapeSpacingLeft       = mergingData.shapeSpacingLeft
         data.positions              = positions
@@ -1258,7 +1447,8 @@ class FCalc {
                                                  width:         data.blockWidth,
                                                  rotationY:     data.blockRotation,
                                                  color:         blockColor,
-                                                 edgeColor:     blockColor)
+                                                 edgeColor:     blockColor,
+                                                 diameter:      previewDiameter)
         blockNode.isHidden       = !self.showBlockGraph
         previewNode.addChildNode(blockNode)
         
@@ -1266,7 +1456,8 @@ class FCalc {
                                                   height:       data.cutterHeight,
                                                   width:        data.cutterWidth,
                                                   color:        cutterColor,
-                                                  edgeColor:    cutterColor)
+                                                  edgeColor:    cutterColor,
+                                                  diameter:     previewDiameter)
         cutterNode.isHidden  = !self.showCutterGraph
         previewNode.addChildNode(cutterNode)
                 
@@ -1274,13 +1465,15 @@ class FCalc {
         if let mergingData = self.mergingData {
             mergingShapeNode     = generateShapeNode(data:          mergingData,
                                                      color:         self.mergingShapeColor,
-                                                     colorHotwire:  self.mergingShapeColorHotwire)
+                                                     colorHotwire:  self.mergingShapeColorHotwire,
+                                                     diameter:     previewDiameter)
             mergingShapeNode.isHidden   = !self.showShapeGraph
             previewNode.addChildNode(mergingShapeNode)
             
             mergingShapeCutNode         = generateShapeCutNode(data:          mergingData,
                                                                color:         self.mergingShapeColor,
-                                                               colorHotwire:  self.mergingShapeColorHotwire)
+                                                               colorHotwire:  self.mergingShapeColorHotwire,
+                                                               diameter:     previewDiameter)
             mergingShapeCutNode.isHidden   = !self.showShapeCutGraph
             previewNode.addChildNode(mergingShapeCutNode)
             
@@ -1288,14 +1481,16 @@ class FCalc {
         
         
         shapeNode            = generateShapeNode(data:          self.data,
-                                                 color:         self.shapeColorHotwire,
-                                                 colorHotwire:  self.shapeColorHotwire)
+                                                 color:         self.shapeColor,
+                                                 colorHotwire:  self.shapeColorHotwire,
+                                                 diameter:     previewDiameter)
         shapeNode.isHidden   = !self.showShapeGraph
         previewNode.addChildNode(shapeNode)
         
         shapeCutNode         = generateShapeCutNode(data:          self.data,
-                                                    color:         self.shapeColorHotwire,
-                                                    colorHotwire:  self.shapeColorHotwire)
+                                                    color:         self.shapeColor,
+                                                    colorHotwire:  self.shapeColorHotwire,
+                                                    diameter:     previewDiameter)
         shapeCutNode.isHidden   = !self.showShapeCutGraph
         previewNode.addChildNode(shapeCutNode)
         
@@ -1346,7 +1541,7 @@ class FCalc {
     }
      
                 
-    private func generateShapeNode(data: FCalcData, color: NSColor, colorHotwire: NSColor) -> SCNNode {
+    private func generateShapeNode(data: FCalcData, color: NSColor, colorHotwire: NSColor, diameter: Double    = 2.0) -> SCNNode {
         let node        = SCNNode()
          
         for position in data.positions {
@@ -1354,17 +1549,18 @@ class FCalc {
             if position.hotwire {
                 c = colorHotwire
             }
-            node.addChildNode(drawLine(x1:      position.x1Block,
-                                       y1:      position.y1Block,
-                                       w1:      position.w1Block,
-                                       x2:      position.x2Block,
-                                       y2:      position.y2Block,
-                                       w2:      position.w2Block,
-                                       color:   c))
+            node.addChildNode(drawLine(x1:          position.x1Block,
+                                       y1:          position.y1Block,
+                                       w1:          position.w1Block,
+                                       x2:          position.x2Block,
+                                       y2:          position.y2Block,
+                                       w2:          position.w2Block,
+                                       color:       c,
+                                       diameter:    diameter))
         }
         return node
     }
-     private func generateShapeCutNode(data: FCalcData, color: NSColor, colorHotwire: NSColor) -> SCNNode {
+     private func generateShapeCutNode(data: FCalcData, color: NSColor, colorHotwire: NSColor, diameter: Double    = 2.0) -> SCNNode {
          let node        = SCNNode()
          var first       = true
          var x:          Double = 0.0
@@ -1382,13 +1578,14 @@ class FCalc {
                  if position.hotwire {
                      c = colorHotwire
                  }
-                 node.addChildNode(drawLine(x1: x,
-                                            y1: y,
-                                            w1: w,
-                                            x2: position.x1Block,
-                                            y2: position.y1Block,
-                                            w2: position.w1Block,
-                                            color: c))
+                 node.addChildNode(drawLine(x1:             x,
+                                            y1:             y,
+                                            w1:             w,
+                                            x2:             position.x1Block,
+                                            y2:             position.y1Block,
+                                            w2:             position.w1Block,
+                                            color:          c,
+                                            diameter:       diameter))
                  x = position.x1Block
                  y = position.y1Block
                  w = position.w1Block
@@ -1407,13 +1604,14 @@ class FCalc {
                  if position.hotwire {
                      c = colorHotwire
                  }
-                 node.addChildNode(drawLine(x1: x,
-                                            y1: y,
-                                            w1: w,
-                                            x2: position.x2Block,
-                                            y2: position.y2Block,
-                                            w2: position.w2Block,
-                                            color: c))
+                 node.addChildNode(drawLine(x1:             x,
+                                            y1:             y,
+                                            w1:             w,
+                                            x2:             position.x2Block,
+                                            y2:             position.y2Block,
+                                            w2:             position.w2Block,
+                                            color:          c,
+                                            diameter:       diameter))
                  x = position.x2Block
                  y = position.y2Block
                  w = position.w2Block
@@ -1440,18 +1638,36 @@ class FCalc {
          
          //SCNTransaction.begin()
         // SCNTransaction.animationDuration = 0.5
-         wireNode.addChildNode(drawLine(x1:      position.x1Axis,
-                                        y1:      position.y1Axis,
-                                        w1:      0.0,
-                                        x2:      position.x2Axis,
-                                        y2:      position.y2Axis,
-                                        w2:      data.cutterWidth,
-                                        color:   wireColor))
+         wireNode.addChildNode(drawLine(x1:             position.x1Axis,
+                                        y1:             position.y1Axis,
+                                        w1:             0.0,
+                                        x2:             position.x2Axis,
+                                        y2:             position.y2Axis,
+                                        w2:             data.cutterWidth,
+                                        color:          wireColor,
+                                        diameter:       self.previewDiameter))
          previewNode.addChildNode(wireNode)
          
          
        //  SCNTransaction.commit()
-         
+         var msg = "Index: "
+         msg += String(markedPosition)
+         msg += " - Block X/Y/W:"
+         msg += valueFor(.x1Block, index: markedPosition) ?? ""
+         msg += "/"
+         msg += valueFor(.y1Block, index: markedPosition) ?? ""
+         msg += "/"
+         msg += valueFor(.w1Block, index: markedPosition) ?? ""
+         msg += " - U/Z/W:"
+         msg += valueFor(.x2Block, index: markedPosition) ?? ""
+         msg += "/"
+         msg += valueFor(.y2Block, index: markedPosition) ?? ""
+         msg += "/"
+         msg += valueFor(.w2Block, index: markedPosition) ?? ""
+         NSLog(msg)
+        
+         requestUpdateStatusText(msg)
+        
      }
      private func generateAxisNode() -> SCNNode {
          let node        = SCNNode()
@@ -1474,13 +1690,14 @@ class FCalc {
                      color = axisColorAlert
                  }
 
-                 node.addChildNode(drawLine(x1:      x,
-                                            y1:      y,
-                                            w1:      0.0,
-                                            x2:      position.x1Axis,
-                                            y2:      position.y1Axis,
-                                            w2:      0.0,
-                                            color:   color))
+                 node.addChildNode(drawLine(x1:             x,
+                                            y1:             y,
+                                            w1:             0.0,
+                                            x2:             position.x1Axis,
+                                            y2:             position.y1Axis,
+                                            w2:             0.0,
+                                            color:          color,
+                                            diameter:       self.previewDiameter))
                  x = position.x1Axis
                  y = position.y1Axis
              }
@@ -1502,13 +1719,14 @@ class FCalc {
                      color = axisColorAlert
                  }
 
-                 node.addChildNode(drawLine(x1:      x,
-                                            y1:      y,
-                                            w1:      data.cutterWidth,
-                                            x2:      position.x2Axis,
-                                            y2:      position.y2Axis,
-                                            w2:      data.cutterWidth,
-                                            color:   color))
+                 node.addChildNode(drawLine(x1:             x,
+                                            y1:             y,
+                                            w1:             data.cutterWidth,
+                                            x2:             position.x2Axis,
+                                            y2:             position.y2Axis,
+                                            w2:             data.cutterWidth,
+                                            color:          color,
+                                            diameter:       self.previewDiameter))
                  x = position.x2Axis
                  y = position.y2Axis
              }
@@ -1730,20 +1948,28 @@ class FCalc {
             f()
         }
     }
+    public func requestUpdateStatusText(_ statusText: String?) {
+        if let f = callback?.updateStatusText(_:) {
+            f(statusText)
+        }
+    }
+
 // MARK: - Load / Save / New
     public func newFile() -> Int {
         // new file is clearing all setting.
         initShape()
-        self.file       = nil
-        self.name       = nil
-        mergingData     = nil
+        self.file               = nil
+        self.projectName        = nil
+        mergingData             = nil
         _ = calculateShape()
         _ = generatePreview()
+        requestUpdateStatusText("New File.")
         return 0
     }
     public func saveToFile(_ file: String?) -> Int {
         guard data.positions.count > 0 else {
             NSLog("No data available")
+            requestUpdateStatusText("Unable to save file: No data available.")
             return -1;
         }
         guard let file = file else {
@@ -1754,10 +1980,14 @@ class FCalc {
         let encoder = JSONEncoder()
         guard let encodedData = try? encoder.encode(self.data) else {
             NSLog("Unable do encode")
+            requestUpdateStatusText("Unable to save file: Encoding Error.")
             return -1
         }
         try? encodedData.write(to: url)
-         
+        
+        self.file           = file      // store filename incl path
+        self.projectName    = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
+        requestUpdateStatusText("File saved as " + URL(fileURLWithPath: file).lastPathComponent)
         return 0
     }
     public func loadFromFile(_ file: String?) -> Int {
@@ -1766,6 +1996,7 @@ class FCalc {
     private func loadFromFile(_ file: String?, withMerge: Bool = false) -> Int {
         guard let file = file else {
             NSLog("No filename")
+            requestUpdateStatusText("Unable to open file: Invalide filename or path.")
             return -1;
         }
         // alte Daten sichern für merge
@@ -1775,10 +2006,9 @@ class FCalc {
             // data can be merged...
             // save original data
             mergingData = data.copy() as FCalcData
-        }
-        if self.file == nil {
-            self.file       = file      // store filename incl path
-            self.name       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
+        } else {
+            self.file              = file      // store filename incl path
+            self.projectName       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
         }
         // File Laden
         let url         = URL(fileURLWithPath: file)
@@ -1791,6 +2021,7 @@ class FCalc {
         _ = calculateShape()
         _ = generatePreview()
         requestUpdateSettingsTable()
+        requestUpdateStatusText("File " + URL(fileURLWithPath: file).lastPathComponent  + " opened.")
         return 0
     }
 
@@ -1952,8 +2183,10 @@ class FCalc {
         case .shapeRotation:            return .double
         case .shapeX:                   return .double
         case .shapeY:                   return .double
-        case .shapeMirror:              return .boolean
-        case .shapeFlip:                return .boolean
+        case .shapeChangeAxis:          return .boolean
+        case .shapeMirrorHorizontal:    return .boolean
+        case .shapeMirrorVertical:      return .boolean
+        case .shapeReverse:             return .boolean
         case .preview:                  return .header
         case .showAxisGraph:            return .boolean
         case .showShapeGraph:           return .boolean
@@ -1961,6 +2194,9 @@ class FCalc {
         case .showBlockGraph:           return .boolean
         case .showShapeCutGraph:        return .boolean
         case .simulationSpeed:          return .double
+        case .previewDiameter:          return .double
+        case .hotwireSettingComment:    return .string
+        case .blockMaterialComment:     return .string
         default:                        return .none
         }
     }
@@ -1999,10 +2235,14 @@ class FCalc {
              .shapeRotation,
              .shapeX,
              .shapeY,
-             .shapeMirror,
-             .shapeFlip,
-             .simulationSpeed:
-            
+             .shapeChangeAxis,
+             .shapeMirrorHorizontal,
+             .shapeMirrorVertical,
+             .shapeReverse,
+             .simulationSpeed,
+             .previewDiameter,
+             .hotwireSettingComment,
+             .blockMaterialComment:
             
             
             
@@ -2014,7 +2254,7 @@ class FCalc {
     public func labelForKey(_ key: SettingsTableKey) -> String {
         switch (key) {
         case .spacer:                   return ""
-        case .cutter:                   return "Machine"
+        case .cutter:                   return "Machine:"
         case .cutterWidth:              return "Operating width [mm]:"
         case .cutterHeight:             return "Operating height [mm]:"
         case .cutterDepth:              return "Operating depth [mm]:"
@@ -2044,8 +2284,10 @@ class FCalc {
         case .shapeRotation:            return "Rotation around lower left corner [°]:"
         case .shapeX:                   return "X movement"
         case .shapeY:                   return "Y movement"
-        case .shapeMirror:              return "Mirror the shape:"
-        case .shapeFlip:                return "Flip the shape:"
+        case .shapeChangeAxis:          return "Change axis:"
+        case .shapeMirrorHorizontal:    return "Mirror horizontal:"
+        case .shapeMirrorVertical:      return "Mirror vertical:"
+        case .shapeReverse:             return "Reverse shape:"
         case .preview:                  return "Preview"
         case .showAxisGraph:            return "Show machine movement:"
         case .showShapeGraph:           return "Show shape:"
@@ -2053,7 +2295,9 @@ class FCalc {
         case .showBlockGraph:           return "Show foam dimensions:"
         case .showShapeCutGraph:        return "Show shape cutting line:"
         case .simulationSpeed:          return "Simulation Speed Factor:"
-    
+        case .previewDiameter:          return "Diamater of Hotwire:"
+        case .hotwireSettingComment:    return "Settings (Voltage, Comment, ...):"
+        case .blockMaterialComment:     return "Material (Comment, ...):"
         default:           return ""
         }
     }
@@ -2086,14 +2330,19 @@ class FCalc {
         case .shapeRotation:            return dtos(data.shapeRotation,          decimals: 0, true)
         case .shapeX:                   return dtos(data.shapeX,                 decimals: data.gcodeDecimals, true)
         case .shapeY:                   return dtos(data.shapeY,                 decimals: data.gcodeDecimals, true)
-        case .shapeMirror:              return btos(data.shapeMirror)
-        case .shapeFlip:                return btos(data.shapeFlip)
+        case .shapeChangeAxis:          return btos(data.shapeChangeAxis)
+        case .shapeMirrorHorizontal:    return btos(data.shapeMirrorHorizontal)
+        case .shapeMirrorVertical:      return btos(data.shapeMirrorVertical)
+        case .shapeReverse:             return btos(data.shapeReverse)
         case .showAxisGraph:            return btos(showAxisGraph)
         case .showShapeGraph:           return btos(showShapeGraph)
         case .showCutterGraph:          return btos(showCutterGraph)
         case .showBlockGraph:           return btos(showBlockGraph)
         case .showShapeCutGraph:        return btos(showShapeCutGraph)
         case .simulationSpeed:          return dtos(simulationSpeed,        decimals: 0, true)
+        case .previewDiameter:          return dtos(previewDiameter,        decimals: 1, true)
+        case .hotwireSettingComment:    return data.hotwireSettingComment
+        case .blockMaterialComment:     return data.blockMaterialComment
         default:           return ""
         }
     }
@@ -2128,17 +2377,21 @@ class FCalc {
         case .shapeRotation:            return value.isValidDouble(0, -90.0, 90.0)
         case .shapeX:                   return value.isValidDouble(data.gcodeDecimals, -1000.0)
         case .shapeY:                   return value.isValidDouble(data.gcodeDecimals, -1000.0)
-        case .shapeMirror:              return true
-        case .shapeFlip:                return true
+        case .shapeChangeAxis:          return true
+        case .shapeMirrorHorizontal:    return true
+        case .shapeMirrorVertical:      return true
+        case .shapeReverse:             return true
         case .showAxisGraph:            return true // ToDo ggf. prüfung auf 1 und 0
         case .showShapeGraph:           return true
         case .showCutterGraph:          return true
         case .showBlockGraph:           return true
         case .showShapeCutGraph:        return true
-        case .simulationSpeed:          return value.isValidDouble(1, 500)
+        case .simulationSpeed:          return value.isValidDouble(1, 1,  500)
+        case .previewDiameter:          return value.isValidDouble(1, 0.1,  5.0)
+        case .hotwireSettingComment:    return true
+        case .blockMaterialComment:     return true
         default: return false
         }
-         
     }
     public func valueForKey(_ key: SettingsTableKey, value: String?, initial: Bool = false) {
         switch (key) {
@@ -2147,8 +2400,8 @@ class FCalc {
         case .cutterDepth:              data.cutterDepth             = stod(value, true);     break;
         case .labelX1Axis:              data.labelX1Axis             = value ?? "X";          break;
         case .labelY1Axis:              data.labelY1Axis             = value ?? "Y";          break;
-        case .labelX2Axis:              data.labelX1Axis             = value ?? "U";          break;
-        case .labelY2Axis:              data.labelY1Axis             = value ?? "Z";          break;
+        case .labelX2Axis:              data.labelX2Axis             = value ?? "U";          break;
+        case .labelY2Axis:              data.labelY2Axis             = value ?? "Z";          break;
         case .gcodeDecimals:            data.gcodeDecimals           = stoui(value);          break;
         case .targetFeedSpeed:          data.targetFeedSpeed         = stoui(value);          break;
         case .maxFeedSpeed:             data.maxFeedSpeed            = stoui(value);          break;
@@ -2169,10 +2422,18 @@ class FCalc {
         case .shapeRotation:            data.shapeRotation           = stod(value, true);     break;
         case .shapeX:                   data.shapeX                  = stod(value, true);     break;
         case .shapeY :                  data.shapeY                  = stod(value, true);     break;
-        case .shapeMirror:              data.shapeMirror             = stob(value);
-                                        mirrorShape();                                        break;
-        case .shapeFlip:                data.shapeFlip               = stob(value);
-                                        flipShape();                                          break;
+        case .shapeChangeAxis:          data.shapeChangeAxis         = stob(value);
+                                        changeAxis();
+                                        break;
+        case .shapeMirrorHorizontal:    data.shapeMirrorHorizontal   = stob(value);
+                                        mirrorHorizontal();
+                                        break;
+        case .shapeMirrorVertical:      data.shapeMirrorVertical     = stob(value);
+                                        mirrorVertical();
+                                        break;
+        case .shapeReverse:             data.shapeReverse            = stob(value);
+                                        reverseShape();
+                                        break;
         case .showAxisGraph:            self.showAxisGraph           = stob(value);
                                         axisNode.isHidden            = !self.showAxisGraph
                                         return
@@ -2191,7 +2452,9 @@ class FCalc {
                                         mergingShapeCutNode.isHidden = !self.showShapeCutGraph
                                         return
         case .simulationSpeed:          self.simulationSpeed         = stod(value, true);     break;
-        
+        case .previewDiameter:          self.previewDiameter         = stod(value, true);     break;
+        case .hotwireSettingComment:    data.hotwireSettingComment   = value ?? ""
+        case .blockMaterialComment:     data.blockMaterialComment    = value ?? ""
         default: return
         }
         if initial == true {     // skip postprocessing fo new data, if it is an initial Load
