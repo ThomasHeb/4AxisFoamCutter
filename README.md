@@ -157,11 +157,12 @@ Please have a lock at the parameters (command $$ over Serial Monitor)
   - new value is stored in the eeprom
   - if gcode includes feed rates, gcode values are used.
   - adjust in big steps with Y- / Y+ buttons (not available, if USE_BUTTONS is set to 0)
-- Cutting
-  - this functions allows horizontal or vertical cutting w/o gcode
-  - select the cutting direction with the 8 buttons for the axis (not available, if USE_BUTTONS is set to 0, direction is selected with jog)
-  - define the maximum x/y travel for cutting (use position menue)
+- Slicing (previous function name: Cutting)
+  - this functions allows horizontal or vertical slicing w/o gcode
+  - select the slicing direction with the 8 buttons for the axis (not available, if USE_BUTTONS is set to 0, direction is selected with jog)
+  - define the maximum x/y travel for slicing (use position menue)
   - executes a cut by preheating the hotwire for 5 seconds
+  - move back to starting position of the slice with seek-speed
 - Fan
   - switch on/off or change the power in %. New value is stored in the eeprom
 - The firmware can still be controlled with gcode sender tools via the UART/USB 
@@ -229,7 +230,7 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 - Import shapes from gcode, nc, SkechUp foamcutter.rb, Winghelper how, fcf-projects
 - Export to gcode
 - Load/Save projects as fcf file
-- Move and rotate the shape 
+- Move and rotate and mirror the shape 
 - Move and rotate the foam block
 - Calculates the movement of the axis
 - Speed optimisation, to keep average speed at the edges of the shape close to target feed speed
