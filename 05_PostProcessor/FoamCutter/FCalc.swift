@@ -111,6 +111,12 @@ import AppKit
 //              General:    Error in travel speed with disabled speed optimization solved
 //              General:    in case of speed calculation less then target speed, taget speed is used
 //              General:    added comment for hotwire setting and foam material
+// 2020-08-24   Import:     Error on z-Axis for relativ import removed
+//              Import:     Added additional gcode commands for import (read and ignored G17, G....)
+//              Import:     order of read for one or two digit commands optimized
+//              Preview:    reworked all update functions to improve speed for SCNNode update
+//                          Only relevant nodes are removed or recalculated
+//              General:    Rotating shape around w axis
 
 protocol FCalcCallback {
     func updatePositionsTableView(_ atIndex: Int?)
@@ -167,7 +173,8 @@ class FCalc {
         case shape
         case shapeWidth
         case shapeSpacingLeft
-        case shapeRotation
+        case shapeRotationY
+        case shapeRotationW
         case shapeX
         case shapeY
         case shapeChangeAxis
@@ -217,7 +224,7 @@ class FCalc {
             case .shape:                    return "26"
             case .shapeWidth:               return "27"
             case .shapeSpacingLeft:         return "28"
-            case .shapeRotation:            return "29"
+            case .shapeRotationY:           return "29"
             case .shapeX:                   return "30"
             case .shapeY:                   return "31"
             case .shapeChangeAxis:          return "32"
@@ -237,7 +244,7 @@ class FCalc {
                 
             case .hotwireSettingComment:    return "44"
             case .blockMaterialComment:     return "45"
-            
+            case .shapeRotationW:           return "46"
             }
         }
     }
@@ -292,7 +299,8 @@ class FCalc {
           
           .shapeWidth,
           .shapeSpacingLeft,
-          .shapeRotation,
+          //.shapeRotationY,
+          //.shapeRotationW,
           //.shapeX,
           //.shapeY,
           //.shapeChangeAxis,
@@ -349,7 +357,8 @@ class FCalc {
         // Shape Position Correction
         var         shapeWidth:                 Double                  = 500.0
         var         shapeSpacingLeft:           Double                  = 100.0
-        var         shapeRotation:              Double                  = 0.0
+        var         shapeRotationY:             Double                  = 0.0
+        var         shapeRotationW:             Double                  = 0.0
         var         shapeX:                     Double                  = 0.0
         var         shapeY:                     Double                  = 0.0
         var         shapeChangeAxis:            Bool                    = false
@@ -388,7 +397,8 @@ class FCalc {
             new.blockMaterialComment    = self.blockMaterialComment
             new.shapeWidth              = self.shapeWidth
             new.shapeSpacingLeft        = self.shapeSpacingLeft
-            new.shapeRotation           = self.shapeRotation
+            new.shapeRotationY          = self.shapeRotationY
+            new.shapeRotationW          = self.shapeRotationW
             new.shapeX                  = self.shapeX
             new.shapeY                  = self.shapeY
             new.shapeChangeAxis         = self.shapeChangeAxis
@@ -431,7 +441,8 @@ class FCalc {
             if let v = try container.decodeIfPresent(String.self, forKey: .blockMaterialComment){   self.blockMaterialComment   = v    }
             if let v = try container.decodeIfPresent(Double.self, forKey: .shapeWidth)          {   self.shapeWidth             = v    }
             if let v = try container.decodeIfPresent(Double.self, forKey: .shapeSpacingLeft)    {   self.shapeSpacingLeft       = v    }
-            if let v = try container.decodeIfPresent(Double.self, forKey: .shapeRotation)       {   self.shapeRotation          = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .shapeRotationY)      {   self.shapeRotationY         = v    }
+            if let v = try container.decodeIfPresent(Double.self, forKey: .shapeRotationW)      {   self.shapeRotationW         = v    }
             if let v = try container.decodeIfPresent(Double.self, forKey: .shapeX)              {   self.shapeX                 = v    }
             if let v = try container.decodeIfPresent(Double.self, forKey: .shapeY)              {   self.shapeY                 = v    }
             if let v = try container.decodeIfPresent(Bool.self, forKey: .shapeChangeAxis)       {   self.shapeChangeAxis        = v    }
@@ -600,7 +611,8 @@ class FCalc {
         // Shapeverschiebung löschen
         data.shapeX                 = 0.0
         data.shapeY                 = 0.0
-        data.shapeRotation          = 0.0
+        data.shapeRotationY         = 0.0
+        data.shapeRotationW         = 0.0
         data.shapeChangeAxis        = false
         data.shapeMirrorHorizontal  = false
         data.shapeMirrorVertical    = false
@@ -643,7 +655,7 @@ class FCalc {
             mergingData = data.copy() as FCalcData
         }
         if self.file == nil {
-            self.file       = file      // store filename incl path
+            self.file              = file      // store filename incl path
             self.projectName       = URL(fileURLWithPath: file).deletingPathExtension().lastPathComponent
         }
         initShape()
@@ -676,10 +688,35 @@ class FCalc {
             var z:                  Double = 0.0
             var modeRelativ:        Bool   = false
             var newPositionValues:  Bool   = false
+            var asInch:             Bool   = false
             
+            func getValue(_ v: Double) -> Double {
+                if asInch == false {
+                    return v
+                } else {
+                    return (v * 25.4)
+                }
+            }
             func decodeGcodeCommand(_ line: String?) -> String? {
                 guard let line = line else {
                     return nil
+                }
+                if line.hasPrefix("G17") {
+                    return nil
+                }
+                if line.hasPrefix("G21") {
+                    asInch = false
+                    return String(line.dropFirst("G21".count))
+                }
+                if line.hasPrefix("G20") {
+                    asInch = true
+                    return String(line.dropFirst("G20".count))
+                }
+                if line.hasPrefix("G01") {
+                    return String(line.dropFirst("G01".count))
+                }
+                if line.hasPrefix("G00") {
+                    return String(line.dropFirst("G00".count))
                 }
                 if line.hasPrefix("G90") {
                     modeRelativ = false
@@ -688,18 +725,6 @@ class FCalc {
                 if line.hasPrefix("G91") {
                     modeRelativ = true
                     return String(line.dropFirst("G91".count))
-                }
-                if line.hasPrefix("G00") {
-                    return String(line.dropFirst("G00".count))
-                }
-                if line.hasPrefix("G0") {
-                    return String(line.dropFirst("G0".count))
-                }
-                if line.hasPrefix("G01") {
-                    return String(line.dropFirst("G01".count))
-                }
-                if line.hasPrefix("G1") {
-                    return String(line.dropFirst("G1".count))
                 }
                 if line.hasPrefix("G4") {
                     return String(line.dropFirst("G4".count))
@@ -713,7 +738,19 @@ class FCalc {
                 if line.hasPrefix("M5") {
                     return String(line.dropFirst("M5".count))
                 }
-                return line // nil
+                if line.hasPrefix(";") {
+                    return nil
+                }
+                if line.hasPrefix("(") {
+                    return nil
+                }
+                if line.hasPrefix("G0") {
+                    return String(line.dropFirst("G0".count))
+                }
+                if line.hasPrefix("G1") {
+                    return String(line.dropFirst("G1".count))
+                }
+                return nil
             }
             
             func decodeGcodeValue(_ line: String?) -> String? {
@@ -729,9 +766,9 @@ class FCalc {
                         line =  String(line.dropFirst(res[0].count))
                         newPositionValues   = true
                         if modeRelativ == true {
-                            x = x + v
+                            x = x + getValue(v)
                         } else {
-                            x = v
+                            x = getValue(v)
                         }
                     }
                     return line
@@ -744,9 +781,9 @@ class FCalc {
                         line =  String(line.dropFirst(res[0].count))
                         newPositionValues   = true
                         if modeRelativ == true {
-                            y = y + v
+                            y = y + getValue(v)
                         } else {
-                            y = v
+                            y = getValue(v)
                         }
                     }
                     return line
@@ -759,9 +796,9 @@ class FCalc {
                         line =  String(line.dropFirst(res[0].count))
                         newPositionValues   = true
                         if modeRelativ == true {
-                            u = u + v
+                            u = u + getValue(v)
                         } else {
-                            u = v
+                            u = getValue(v)
                         }
                     }
                     return line
@@ -774,9 +811,9 @@ class FCalc {
                         line =  String(line.dropFirst(res[0].count))
                         newPositionValues   = true
                         if modeRelativ == true {
-                            z = y + v
+                            z = z + getValue(v)
                         } else {
-                            z = v
+                            z = getValue(v)
                         }
                     }
                     return line
@@ -892,7 +929,10 @@ class FCalc {
             NSLog("Keine Daten vorhanden")
             return -1;
         }
-        
+        guard calculateShape() == 0 else {                          // wichtig, damit bei koordinatenänderungen alle berechnungen (z.B. Feedspeed) sauber aufgebaut werden
+            requestUpdateStatusText("Unable to calculate shape.")
+            return -1
+        }
         guard generateGCode() == 0 else {
             requestUpdateStatusText("Unable to generate gcode for line items.")
             return -1
@@ -1152,33 +1192,103 @@ class FCalc {
         var left:                       Double      = 0.0
         var right:                      Double      = 0.0
         var delta:                      Double      = 0.0
+        var xNew:                       Double      = 0.0
+        var yNew:                       Double      = 0.0
+        var wNew:                       Double      = 0.0
+        var x:                          Double      = 0.0
+        var y:                          Double      = 0.0
+        var w:                          Double      = 0.0
         
         
-        if (source == .x1Shape) || (source == .y1Shape) || (source == .x2Shape) || (source == .y2Shape) {
+        if (source == .x1Shape) || (source == .y1Shape) || (source == .x2Shape) || (source == .y2Shape) || (source == .w1Shape) || (source == .w2Shape) {
       
-            position.x1Block = position.x1Shape * cos(-data.shapeRotation)
-                             - position.w1Shape * sin(-data.shapeRotation)
+            // CALCULATE from shape to block (not foam block, this is block is the rotated and moved shape)
+            // Left Side
+            x = position.x1Shape
+            y = position.y1Shape
+            w = position.w1Shape
+            
+            // Rotation around W-Axis
+            xNew    = x * cos(-data.shapeRotationW)
+                    - y * sin(-data.shapeRotationW)
+            yNew    = x * sin(-data.shapeRotationW)
+                    + y * cos(-data.shapeRotationW)
+            x       = xNew
+            y       = yNew
+            
+            // Rotation arround Y-Axis
+            xNew    = x * cos(-data.shapeRotationY)
+                    - w * sin(-data.shapeRotationY)
+            wNew    = x * sin(-data.shapeRotationY)
+                    + w * cos(-data.shapeRotationY)
+            x       = xNew
+            w       = wNew
+            
+            // movement
+            xNew    = x + data.shapeX
+            yNew    = y + data.shapeY
+            wNew    = w + data.shapeSpacingLeft
+            
+            position.x1Block    = xNew
+            position.y1Block    = yNew
+            position.w1Block    = wNew
+            
+            // Right Side
+            x = position.x2Shape
+            y = position.y2Shape
+            w = position.w2Shape
+            
+            // Rotation around W-Axis
+            xNew    = x * cos(-data.shapeRotationW)
+                    - y * sin(-data.shapeRotationW)
+            yNew    = x * sin(-data.shapeRotationW)
+                    + y * cos(-data.shapeRotationW)
+            x       = xNew
+            y       = yNew
+            
+            // Rotation arround Y-Axis
+            xNew    = x * cos(-data.shapeRotationY)
+                    - w * sin(-data.shapeRotationY)
+            wNew    = x * sin(-data.shapeRotationY)
+                    + w * cos(-data.shapeRotationY)
+            x       = xNew
+            w       = wNew
+            
+            // movement
+            xNew    = x + data.shapeX
+            yNew    = y + data.shapeY
+            wNew    = w + data.shapeSpacingLeft
+            
+            position.x2Block    = xNew
+            position.y2Block    = yNew
+            position.w2Block    = wNew
+              
+            /*
+            position.x1Block = position.x1Shape * cos(-data.shapeRotationY)
+                             - position.w1Shape * sin(-data.shapeRotationY)
                              + data.shapeX
             
-            position.w1Block = position.x1Shape * sin(-data.shapeRotation)
-                             + position.w1Shape * cos(-data.shapeRotation)
+            position.w1Block = position.x1Shape * sin(-data.shapeRotationY)
+                             + position.w1Shape * cos(-data.shapeRotationY)
                              + data.shapeSpacingLeft
             
             position.y1Block = position.y1Shape
                              + data.shapeY
              
-            position.x2Block = position.x2Shape * cos(-data.shapeRotation)
-                             - position.w2Shape * sin(-data.shapeRotation)
+            position.x2Block = position.x2Shape * cos(-data.shapeRotationY)
+                             - position.w2Shape * sin(-data.shapeRotationY)
                              + data.shapeX
              
-            position.w2Block = position.x2Shape * sin(-data.shapeRotation)
-                             + position.w2Shape * cos(-data.shapeRotation)
+            position.w2Block = position.x2Shape * sin(-data.shapeRotationY)
+                             + position.w2Shape * cos(-data.shapeRotationY)
                              + data.shapeSpacingLeft
              
             position.y2Block = position.y2Shape
                              + data.shapeY
-            
+            */
                 
+            // CALCULATE from Block to Axis
+            
             delta               = (position.x2Block - position.x1Block) / (position.w2Block - position.w1Block)     // berechne die steigung
             right               = data.cutterWidth - position.w2Block
             left                = position.w1Block
@@ -1213,17 +1323,17 @@ class FCalc {
             
             x                   = position.x1Block - data.shapeX
             w                   = position.w1Block - data.shapeSpacingLeft
-            position.x1Shape = x * cos(data.shapeRotation)
-                             - w * sin(data.shapeRotation)
-            position.w1Shape = x * sin(data.shapeRotation)
-                             + w * cos(data.shapeRotation)
+            position.x1Shape = x * cos(data.shapeRotationY)
+                             - w * sin(data.shapeRotationY)
+            position.w1Shape = x * sin(data.shapeRotationY)
+                             + w * cos(data.shapeRotationY)
              
             x                   = position.x2Block - data.shapeX
             w                   = position.w2Block - data.shapeSpacingLeft
-            position.x2Shape = x * cos(data.shapeRotation)
-                             - w * sin(data.shapeRotation)
-            position.w2Shape = x * sin(data.shapeRotation)
-                             + w * cos(data.shapeRotation)
+            position.x2Shape = x * cos(data.shapeRotationY)
+                             - w * sin(data.shapeRotationY)
+            position.w2Shape = x * sin(data.shapeRotationY)
+                             + w * cos(data.shapeRotationY)
             
         }
         
@@ -1305,7 +1415,7 @@ class FCalc {
             return -1
         }
         
-        // copy all Block Positions to Shape Positions, delete rotation and movement
+        // copy all Block Positions to Shape Positions, this deletes rotation and movement and handles this as new fix / original position
         for position in mergingData.positions {
             position.x1Shape        = position.x1Block
             position.x2Shape        = position.x2Block
@@ -1429,77 +1539,22 @@ class FCalc {
             }
         }
         
-        blockNode.removeFromParentNode()
-        cutterNode.removeFromParentNode()
-        shapeNode.removeFromParentNode()
-        shapeCutNode.removeFromParentNode()
-        axisNode.removeFromParentNode()
+        
         mergingShapeNode.removeFromParentNode()
         mergingShapeCutNode.removeFromParentNode()
         
         stop()      // stop the simulation
         
-        blockNode       = generateFoamBlockeNode(x:             data.blockSpacingFront,
-                                                 y:             data.blockSpacingUnder,
-                                                 w:             data.blockSpacingLeft,
-                                                 depth:         data.blockDepth,
-                                                 height:        data.blockHeight,
-                                                 width:         data.blockWidth,
-                                                 rotationY:     data.blockRotation,
-                                                 color:         blockColor,
-                                                 edgeColor:     blockColor,
-                                                 diameter:      previewDiameter)
-        blockNode.isHidden       = !self.showBlockGraph
-        previewNode.addChildNode(blockNode)
+        generateFoamBlockNode()
         
-        cutterNode           = generateCutterNode(depth:        data.cutterDepth,
-                                                  height:       data.cutterHeight,
-                                                  width:        data.cutterWidth,
-                                                  color:        cutterColor,
-                                                  edgeColor:    cutterColor,
-                                                  diameter:     previewDiameter)
-        cutterNode.isHidden  = !self.showCutterGraph
-        previewNode.addChildNode(cutterNode)
-                
+        generateMergingShapeNode()
+        generateMergingShapeCutNode()
         
-        if let mergingData = self.mergingData {
-            mergingShapeNode     = generateShapeNode(data:          mergingData,
-                                                     color:         self.mergingShapeColor,
-                                                     colorHotwire:  self.mergingShapeColorHotwire,
-                                                     diameter:     previewDiameter)
-            mergingShapeNode.isHidden   = !self.showShapeGraph
-            previewNode.addChildNode(mergingShapeNode)
-            
-            mergingShapeCutNode         = generateShapeCutNode(data:          mergingData,
-                                                               color:         self.mergingShapeColor,
-                                                               colorHotwire:  self.mergingShapeColorHotwire,
-                                                               diameter:     previewDiameter)
-            mergingShapeCutNode.isHidden   = !self.showShapeCutGraph
-            previewNode.addChildNode(mergingShapeCutNode)
-            
-        }
+        generateShapeNode()
+        generateShapeCutNode()
         
-        
-        shapeNode            = generateShapeNode(data:          self.data,
-                                                 color:         self.shapeColor,
-                                                 colorHotwire:  self.shapeColorHotwire,
-                                                 diameter:     previewDiameter)
-        shapeNode.isHidden   = !self.showShapeGraph
-        previewNode.addChildNode(shapeNode)
-        
-        shapeCutNode         = generateShapeCutNode(data:          self.data,
-                                                    color:         self.shapeColor,
-                                                    colorHotwire:  self.shapeColorHotwire,
-                                                    diameter:     previewDiameter)
-        shapeCutNode.isHidden   = !self.showShapeCutGraph
-        previewNode.addChildNode(shapeCutNode)
-        
-        axisNode             = generateAxisNode()
-        axisNode.isHidden    = !self.showAxisGraph
-        previewNode.addChildNode(axisNode)
-        
-        
-        
+        generateCutterNode()
+        generateAxisNode()
         
         return 0
     }
@@ -1509,119 +1564,310 @@ class FCalc {
     private func cos(_ degrees: Double) -> Double {
         return __cospi(degrees/180.0)
     }
-    private func generateCutterNode(depth:        Double,
-                                    height:       Double,
-                                    width:        Double,
-                                    color:        NSColor,
-                                    edgeColor:    NSColor,
-                                    diameter:     Double    = 2.0) -> SCNNode {
-            
+    private func generateCutterNode() {
+         cutterNode.removeFromParentNode()
+        
          var plane:      SCNPlane
          var planeNode:  SCNNode
          
          let node        = SCNNode()
-         let color       = color.withAlphaComponent(0.5)
+         let color       = cutterColor.withAlphaComponent(0.5)
          
-         plane           = SCNPlane(width: CGFloat(depth),
-                                    height: CGFloat(height))
+         plane           = SCNPlane(width: CGFloat(data.cutterDepth),
+                                    height: CGFloat(data.cutterHeight))
          plane.firstMaterial?.diffuse.contents   = color
          plane.firstMaterial?.isDoubleSided      = true
          planeNode                               = SCNNode(geometry:plane)
          planeNode.eulerAngles.y                 = .pi / 2
-         planeNode.position.x                    = CGFloat(width)        * (-0.5)
+         planeNode.position.x                    = CGFloat(data.cutterWidth)        * (-0.5)
          node.addChildNode(planeNode)
          
          planeNode                               = planeNode.clone()
-         planeNode.position.x                    = CGFloat(width)        * (0.5)
+         planeNode.position.x                    = CGFloat(data.cutterWidth)        * (0.5)
          node.addChildNode(planeNode)
          
-         node.pivot                              = SCNMatrix4MakeTranslation(CGFloat(-width)/2.0, CGFloat(-height)/2.0, CGFloat(depth)/2.0);
+         node.pivot                              = SCNMatrix4MakeTranslation(CGFloat(-data.cutterWidth)/2.0, CGFloat(-data.cutterHeight)/2.0, CGFloat(data.cutterDepth)/2.0);
          
-         return node
+         cutterNode           = node
+         cutterNode.isHidden  = !self.showCutterGraph
+         previewNode.addChildNode(cutterNode)
     }
      
-                
-    private func generateShapeNode(data: FCalcData, color: NSColor, colorHotwire: NSColor, diameter: Double    = 2.0) -> SCNNode {
-        let node        = SCNNode()
-         
-        for position in data.positions {
-            var c = color
-            if position.hotwire {
-                c = colorHotwire
+    private func generateShapeNode(index: Int? = nil) {
+        if let index = index {
+            // lösche diese nodes vom index
+            // lösche diese nodes vom index und index + 1
+            let nodes = shapeNode.childNodes.filter { $0.name == String(index)  }
+            for node in nodes {
+                node.removeFromParentNode()
             }
-            node.addChildNode(drawLine(x1:          position.x1Block,
-                                       y1:          position.y1Block,
-                                       w1:          position.w1Block,
-                                       x2:          position.x2Block,
-                                       y2:          position.y2Block,
-                                       w2:          position.w2Block,
-                                       color:       c,
-                                       diameter:    diameter))
+            // und berechne diese neu
+            if index < self.data.positions.count {
+                let position = self.data.positions[index]
+                var c = self.shapeColor
+                if position.hotwire {
+                    c = self.shapeColorHotwire
+                }
+                shapeNode.addChildNode(drawLine(x1:          position.x1Block,
+                                                y1:          position.y1Block,
+                                                w1:          position.w1Block,
+                                                x2:          position.x2Block,
+                                                y2:          position.y2Block,
+                                                w2:          position.w2Block,
+                                                color:       c,
+                                                diameter:    previewDiameter,
+                                                index:       index))
+            }
+        } else {
+            // gesamten Shape aktualisieren
+            shapeNode.removeFromParentNode()
+            shapeNode = SCNNode()
+            
+            for (i, position) in self.data.positions.enumerated() {
+                var c = self.shapeColor
+                if position.hotwire {
+                    c = self.shapeColorHotwire
+                }
+                shapeNode.addChildNode(drawLine(x1:          position.x1Block,
+                                                y1:          position.y1Block,
+                                                w1:          position.w1Block,
+                                                x2:          position.x2Block,
+                                                y2:          position.y2Block,
+                                                w2:          position.w2Block,
+                                                color:       c,
+                                                diameter:    previewDiameter,
+                                                index:       i))
+            }
+            shapeNode.isHidden   = !self.showShapeGraph
+            previewNode.addChildNode(shapeNode)
         }
-        return node
     }
-     private func generateShapeCutNode(data: FCalcData, color: NSColor, colorHotwire: NSColor, diameter: Double    = 2.0) -> SCNNode {
-         let node        = SCNNode()
-         var first       = true
-         var x:          Double = 0.0
-         var y:          Double = 0.0
-         var w:          Double = 0.0
-         
-         for position in data.positions {
-             if first {
-                 first = false
-                 x = position.x1Block
-                 y = position.y1Block
-                 w = position.w1Block
-             } else {
-                 var c = color
-                 if position.hotwire {
-                     c = colorHotwire
-                 }
-                 node.addChildNode(drawLine(x1:             x,
-                                            y1:             y,
-                                            w1:             w,
-                                            x2:             position.x1Block,
-                                            y2:             position.y1Block,
-                                            w2:             position.w1Block,
-                                            color:          c,
-                                            diameter:       diameter))
-                 x = position.x1Block
-                 y = position.y1Block
-                 w = position.w1Block
-             }
-         }
-         
-         first       = true
-         for position in data.positions {
-             if first {
-                 first = false
-                 x = position.x2Block
-                 y = position.y2Block
-                 w = position.w2Block
-             } else {
-                 var c = color
-                 if position.hotwire {
-                     c = colorHotwire
-                 }
-                 node.addChildNode(drawLine(x1:             x,
-                                            y1:             y,
-                                            w1:             w,
-                                            x2:             position.x2Block,
-                                            y2:             position.y2Block,
-                                            w2:             position.w2Block,
-                                            color:          c,
-                                            diameter:       diameter))
-                 x = position.x2Block
-                 y = position.y2Block
-                 w = position.w2Block
-             }
-         }
-         
-         
-         return node
+    private func generateShapeCutNode(index: Int? = nil) {
+        if let index = index {
+            // lösche diese nodes vom index und index + 1
+            let nodes = shapeCutNode.childNodes.filter { ($0.name == String(index)) || ($0.name == String(index + 1)) }
+            for node in nodes {
+                node.removeFromParentNode()
+            }
+            
+            // und berechne diese neu
+            var p1: CuttingPosition?    = nil
+            var p2: CuttingPosition!
+            var p3: CuttingPosition?    = nil
+            
+            p2      = self.data.positions[index]
+            if index > 0 {
+                p1  = self.data.positions[index - 1]
+            }
+            if index + 1 < self.data.positions.count {
+                p3  = self.data.positions[index + 1]
+            }
+            if let p1 = p1 {
+                var c = self.shapeColor
+                if p2.hotwire {
+                    c = self.shapeColorHotwire
+                }
+                shapeCutNode.addChildNode(drawLine(x1:             p1.x1Block,
+                                                   y1:             p1.y1Block,
+                                                   w1:             p1.w1Block,
+                                                   x2:             p2.x1Block,
+                                                   y2:             p2.y1Block,
+                                                   w2:             p2.w1Block,
+                                                   color:          c,
+                                                   diameter:       previewDiameter,
+                                                   index:          index))
+                shapeCutNode.addChildNode(drawLine(x1:             p1.x2Block,
+                                                   y1:             p1.y2Block,
+                                                   w1:             p1.w2Block,
+                                                   x2:             p2.x2Block,
+                                                   y2:             p2.y2Block,
+                                                   w2:             p2.w2Block,
+                                                   color:          c,
+                                                   diameter:       previewDiameter,
+                                                   index:          index))
+            }
+            if let p3 = p3 {
+                var c = self.shapeColor
+                if p2.hotwire {
+                    c = self.shapeColorHotwire
+                }
+                shapeCutNode.addChildNode(drawLine(x1:             p2.x1Block,
+                                                   y1:             p2.y1Block,
+                                                   w1:             p2.w1Block,
+                                                   x2:             p3.x1Block,
+                                                   y2:             p3.y1Block,
+                                                   w2:             p3.w1Block,
+                                                   color:          c,
+                                                   diameter:       previewDiameter,
+                                                   index:          index + 1))
+                shapeCutNode.addChildNode(drawLine(x1:             p2.x2Block,
+                                                   y1:             p2.y2Block,
+                                                   w1:             p2.w2Block,
+                                                   x2:             p3.x2Block,
+                                                   y2:             p3.y2Block,
+                                                   w2:             p3.w2Block,
+                                                   color:          c,
+                                                   diameter:       previewDiameter,
+                                                   index:          index + 1))
+            }
+        } else {
+            // gesamten Shape aktualisieren
+            shapeCutNode.removeFromParentNode()
+            shapeCutNode = SCNNode()
+            
+            var x:          Double = 0.0
+            var y:          Double = 0.0
+            var w:          Double = 0.0
+            
+            for (i, position) in self.data.positions.enumerated() {
+                if i == 0 {
+                    x = position.x1Block
+                    y = position.y1Block
+                    w = position.w1Block
+                } else {
+                    var c = self.shapeColor
+                    if position.hotwire {
+                        c = self.shapeColorHotwire
+                    }
+                    shapeCutNode.addChildNode(drawLine(x1:             x,
+                                                       y1:             y,
+                                                       w1:             w,
+                                                       x2:             position.x1Block,
+                                                       y2:             position.y1Block,
+                                                       w2:             position.w1Block,
+                                                       color:          c,
+                                                       diameter:       previewDiameter,
+                                                       index:          i))
+                    x = position.x1Block
+                    y = position.y1Block
+                    w = position.w1Block
+                }
+            }
+            
+            for (i, position) in data.positions.enumerated() {
+                if i == 0 {
+                    x = position.x2Block
+                    y = position.y2Block
+                    w = position.w2Block
+                } else {
+                    var c = self.shapeColor
+                    if position.hotwire {
+                        c = self.shapeColorHotwire
+                    }
+                    shapeCutNode.addChildNode(drawLine(x1:             x,
+                                                       y1:             y,
+                                                       w1:             w,
+                                                       x2:             position.x2Block,
+                                                       y2:             position.y2Block,
+                                                       w2:             position.w2Block,
+                                                       color:          c,
+                                                       diameter:       previewDiameter,
+                                                       index:          i))
+                    x = position.x2Block
+                    y = position.y2Block
+                    w = position.w2Block
+                }
+            }
+            shapeCutNode.isHidden   = !self.showShapeCutGraph
+            previewNode.addChildNode(shapeCutNode)
+        }
+    }
+    private func generateMergingShapeNode(index: Int? = nil) {
+        // gesamten Shape aktualisieren
+        mergingShapeNode.removeFromParentNode()
         
-     }
+        guard let positions = self.mergingData?.positions else {
+            return
+        }
+        
+        
+        mergingShapeNode = SCNNode()
+        
+        for (i, position) in positions.enumerated() {
+            var c = self.mergingShapeColor
+            if position.hotwire {
+                c = self.mergingShapeColorHotwire
+            }
+            mergingShapeNode.addChildNode(drawLine(x1:          position.x1Block,
+                                                   y1:          position.y1Block,
+                                                   w1:          position.w1Block,
+                                                   x2:          position.x2Block,
+                                                   y2:          position.y2Block,
+                                                   w2:          position.w2Block,
+                                                   color:       c,
+                                                   diameter:    previewDiameter,
+                                                   index:       i))
+        }
+        mergingShapeNode.isHidden   = !self.showShapeGraph
+        previewNode.addChildNode(mergingShapeNode)
+    }
+    private func generateMergingShapeCutNode(index: Int? = nil) {
+        // gesamten Shape aktualisieren
+        mergingShapeCutNode.removeFromParentNode()
+        
+        guard let positions = self.mergingData?.positions else {
+            return
+        }
+        
+        mergingShapeCutNode = SCNNode()
+        
+        var x:          Double = 0.0
+        var y:          Double = 0.0
+        var w:          Double = 0.0
+        
+        for (i, position) in positions.enumerated() {
+            if i == 0 {
+                x = position.x1Block
+                y = position.y1Block
+                w = position.w1Block
+            } else {
+                var c = self.mergingShapeColor
+                if position.hotwire {
+                    c = self.mergingShapeColorHotwire
+                }
+                mergingShapeCutNode.addChildNode(drawLine(x1:             x,
+                                                          y1:             y,
+                                                          w1:             w,
+                                                          x2:             position.x1Block,
+                                                          y2:             position.y1Block,
+                                                          w2:             position.w1Block,
+                                                          color:          c,
+                                                          diameter:       previewDiameter,
+                                                          index:          i))
+                x = position.x1Block
+                y = position.y1Block
+                w = position.w1Block
+            }
+        }
+        
+        for (i, position) in positions.enumerated() {
+            if i == 0 {
+                x = position.x2Block
+                y = position.y2Block
+                w = position.w2Block
+            } else {
+                var c = self.mergingShapeColor
+                if position.hotwire {
+                    c = self.mergingShapeColorHotwire
+                }
+                mergingShapeCutNode.addChildNode(drawLine(x1:             x,
+                                                          y1:             y,
+                                                          w1:             w,
+                                                          x2:             position.x2Block,
+                                                          y2:             position.y2Block,
+                                                          w2:             position.w2Block,
+                                                          color:          c,
+                                                          diameter:       previewDiameter,
+                                                          index:          i))
+                x = position.x2Block
+                y = position.y2Block
+                w = position.w2Block
+            }
+        }
+        mergingShapeCutNode.isHidden   = !self.showShapeCutGraph
+        previewNode.addChildNode(mergingShapeCutNode)
+    }
+     
      private func updateWireNode()  {
          wireNode.removeFromParentNode()
          wireNode    = SCNNode()
@@ -1669,72 +1915,166 @@ class FCalc {
          requestUpdateStatusText(msg)
         
      }
-     private func generateAxisNode() -> SCNNode {
-         let node        = SCNNode()
-         var first       = true
-         var x:          Double = 0.0
-         var y:          Double = 0.0
-         
-         for position in data.positions {
-             if first {
-                 first = false
-                 x = position.x1Axis
-                 y = position.y1Axis
-             } else {
-                 var color = axisColor
-                 if position.hotwire {
-                     color = axisColorHotwire
-                 }
-                 if (position.x1Axis < 0) || (position.y1Axis < 0) || (position.x1Axis > data.cutterDepth) || (position.y1Axis > data.cutterHeight) ||
-                    (x < 0) || (y < 0) || (x > data.cutterDepth) || (y > data.cutterHeight) {
-                     color = axisColorAlert
-                 }
+     private func generateAxisNode(index: Int? = nil)  {
+        if let index = index {
+            // lösche diese nodes vom index und index + 1
+            let nodes = axisNode.childNodes.filter { ($0.name == String(index)) || ($0.name == String(index + 1)) }
+            for node in nodes {
+                node.removeFromParentNode()
+            }
+           
+           // und berechne diese neu
+           var p1: CuttingPosition?    = nil
+           var p2: CuttingPosition!
+           var p3: CuttingPosition?    = nil
+           
+           p2      = self.data.positions[index]
+           if index > 0 {
+               p1  = self.data.positions[index - 1]
+           }
+           if index + 1 < self.data.positions.count {
+               p3  = self.data.positions[index + 1]
+           }
+           if let p1 = p1 {
+               var color = axisColor
+               if p2.hotwire {
+                   color = axisColorHotwire
+               }
+               if (p2.x1Axis < 0) || (p2.y1Axis < 0) || (p2.x1Axis > data.cutterDepth) || (p2.y1Axis > data.cutterHeight) ||
+                  (p1.x1Axis < 0) || (p1.y1Axis < 0) || (p1.x1Axis > data.cutterDepth) || (p1.y1Axis > data.cutterHeight) {
+                   color = axisColorAlert
+               }
+               axisNode.addChildNode(drawLine(x1:             p1.x1Axis,
+                                              y1:             p1.y1Axis,
+                                              w1:             0.0,
+                                              x2:             p2.x1Axis,
+                                              y2:             p2.y1Axis,
+                                              w2:             0.0,
+                                              color:          color,
+                                              diameter:       previewDiameter,
+                                              index:          index))
+               color = axisColor
+               if p2.hotwire {
+                   color = axisColorHotwire
+               }
+               if (p2.x2Axis < 0) || (p2.y2Axis < 0) || (p2.x2Axis > data.cutterDepth) || (p2.y2Axis > data.cutterHeight) ||
+                  (p1.x2Axis < 0) || (p1.y2Axis < 0) || (p1.x2Axis > data.cutterDepth) || (p1.y2Axis > data.cutterHeight) {
+                   color = axisColorAlert
+               }
+               axisNode.addChildNode(drawLine(x1:             p1.x2Axis,
+                                              y1:             p1.y2Axis,
+                                              w1:             data.cutterWidth,
+                                              x2:             p2.x2Axis,
+                                              y2:             p2.y2Axis,
+                                              w2:             data.cutterWidth,
+                                              color:          color,
+                                              diameter:       previewDiameter,
+                                              index:          index))
+            
+            }
+            if let p3 = p3 {
+                var color = axisColor
+                if p3.hotwire {
+                    color = axisColorHotwire
+                }
+                if (p2.x1Axis < 0) || (p2.y1Axis < 0) || (p2.x1Axis > data.cutterDepth) || (p2.y1Axis > data.cutterHeight) ||
+                   (p3.x1Axis < 0) || (p3.y1Axis < 0) || (p3.x1Axis > data.cutterDepth) || (p3.y1Axis > data.cutterHeight) {
+                    color = axisColorAlert
+                }
+                axisNode.addChildNode(drawLine(x1:             p2.x1Axis,
+                                               y1:             p2.y1Axis,
+                                               w1:             0.0,
+                                               x2:             p3.x1Axis,
+                                               y2:             p3.y1Axis,
+                                               w2:             0.0,
+                                               color:          color,
+                                               diameter:       previewDiameter,
+                                               index:          index + 1))
+                
+               
+                if (p2.x2Axis < 0) || (p2.y2Axis < 0) || (p2.x2Axis > data.cutterDepth) || (p2.y2Axis > data.cutterHeight) ||
+                   (p3.x2Axis < 0) || (p3.y2Axis < 0) || (p3.x2Axis > data.cutterDepth) || (p3.y2Axis > data.cutterHeight) {
+                    color = axisColorAlert
+                }
+                axisNode.addChildNode(drawLine(x1:             p2.x2Axis,
+                                               y1:             p2.y2Axis,
+                                               w1:             data.cutterWidth,
+                                               x2:             p3.x2Axis,
+                                               y2:             p3.y2Axis,
+                                               w2:             data.cutterWidth,
+                                               color:          color,
+                                               diameter:       previewDiameter,
+                                               index:          index + 1))
+           }
+            
+            
+        } else {
+             axisNode.removeFromParentNode()
+             axisNode = SCNNode()
+            
+             var x:          Double = 0.0
+             var y:          Double = 0.0
+             
+             for (i, position) in data.positions.enumerated() {
+                 if i == 0 {
+                     x = position.x1Axis
+                     y = position.y1Axis
+                 } else {
+                     var color = axisColor
+                     if position.hotwire {
+                         color = axisColorHotwire
+                     }
+                     if (position.x1Axis < 0) || (position.y1Axis < 0) || (position.x1Axis > data.cutterDepth) || (position.y1Axis > data.cutterHeight) ||
+                        (x < 0) || (y < 0) || (x > data.cutterDepth) || (y > data.cutterHeight) {
+                         color = axisColorAlert
+                     }
 
-                 node.addChildNode(drawLine(x1:             x,
-                                            y1:             y,
-                                            w1:             0.0,
-                                            x2:             position.x1Axis,
-                                            y2:             position.y1Axis,
-                                            w2:             0.0,
-                                            color:          color,
-                                            diameter:       self.previewDiameter))
-                 x = position.x1Axis
-                 y = position.y1Axis
+                     axisNode.addChildNode(drawLine(x1:             x,
+                                                    y1:             y,
+                                                    w1:             0.0,
+                                                    x2:             position.x1Axis,
+                                                    y2:             position.y1Axis,
+                                                    w2:             0.0,
+                                                    color:          color,
+                                                    diameter:       self.previewDiameter,
+                                                    index:          i))
+                     x = position.x1Axis
+                     y = position.y1Axis
+                 }
              }
-         }
-         
-         first       = true
-         for position in data.positions {
-             if first {
-                 first = false
-                 x = position.x2Axis
-                 y = position.y2Axis
-             } else {
-                 var color = axisColor
-                 if position.hotwire {
-                     color = axisColorHotwire
-                 }
-                 if (position.x2Axis < 0) || (position.y2Axis < 0) || (position.x2Axis > data.cutterDepth) || (position.y2Axis > data.cutterHeight) ||
-                    (x < 0) || (y < 0) || (x > data.cutterDepth) || (y > data.cutterHeight) {
-                     color = axisColorAlert
-                 }
+             
+             for (i, position) in data.positions.enumerated() {
+                 if i == 0 {
+                     x = position.x2Axis
+                     y = position.y2Axis
+                 } else {
+                     var color = axisColor
+                     if position.hotwire {
+                         color = axisColorHotwire
+                     }
+                     if (position.x2Axis < 0) || (position.y2Axis < 0) || (position.x2Axis > data.cutterDepth) || (position.y2Axis > data.cutterHeight) ||
+                        (x < 0) || (y < 0) || (x > data.cutterDepth) || (y > data.cutterHeight) {
+                         color = axisColorAlert
+                     }
 
-                 node.addChildNode(drawLine(x1:             x,
-                                            y1:             y,
-                                            w1:             data.cutterWidth,
-                                            x2:             position.x2Axis,
-                                            y2:             position.y2Axis,
-                                            w2:             data.cutterWidth,
-                                            color:          color,
-                                            diameter:       self.previewDiameter))
-                 x = position.x2Axis
-                 y = position.y2Axis
+                     axisNode.addChildNode(drawLine(x1:             x,
+                                                y1:             y,
+                                                w1:             data.cutterWidth,
+                                                x2:             position.x2Axis,
+                                                y2:             position.y2Axis,
+                                                w2:             data.cutterWidth,
+                                                color:          color,
+                                                diameter:       self.previewDiameter,
+                                                index:          i))
+                     x = position.x2Axis
+                     y = position.y2Axis
+                 }
              }
-         }
-         
-         
-         return node
-        
+             
+             axisNode.isHidden    = !self.showAxisGraph
+             previewNode.addChildNode(axisNode)
+            
+        }
      }
 
      private func drawLine(x1:       Double,
@@ -1744,7 +2084,8 @@ class FCalc {
                            y2:       Double,
                            w2:       Double,
                            color:    NSColor,
-                           diameter: Double    = 2.0) -> SCNNode {
+                           diameter: Double    = 2.0,
+                           index:    Int? = nil) -> SCNNode {
 
          let p1 = SCNVector3Make(CGFloat(w1), CGFloat(y1), CGFloat(-x1))
          let p2 = SCNVector3Make(CGFloat(w2), CGFloat(y2), CGFloat(-x2))
@@ -1763,127 +2104,121 @@ class FCalc {
          let lineNode = SCNNode(geometry: lineGeometry)
          lineNode.position = midPosition
          lineNode.look (at: p2, up: previewNode.worldUp, localFront: lineNode.worldUp)
-         
+         lineNode.name = String(index ?? 0)
          return lineNode
      }
      
     
-     private func generateFoamBlockeNode(x:            Double,
-                                         y:            Double,
-                                         w:            Double,
-                                         depth:        Double,
-                                         height:       Double,
-                                         width:        Double,
-                                         rotationX:    Double    = 0.0,
-                                         rotationY:    Double    = 0.0,
-                                         rotationW:    Double    = 0.0,
-                                         color:        NSColor,
-                                         edgeColor:    NSColor,
-                                         diameter:     Double    = 2.0) -> SCNNode {
+     private func generateFoamBlockNode() {
          
          var h:          CGFloat
          var edge:       SCNCapsule
          var edgeNode:   SCNNode
          let node        = SCNNode()
-         let color       = color.withAlphaComponent(0.5)
+         let color       = blockColor.withAlphaComponent(0.5)
+         
          
          // draw the box
-         let box         = SCNBox(width: CGFloat(width),
-                                  height: CGFloat(height),
-                                  length: CGFloat(depth),
-                                  chamferRadius: CGFloat(diameter/2))
+         let box         = SCNBox(width: CGFloat(data.blockWidth),
+                                  height: CGFloat(data.blockHeight),
+                                  length: CGFloat(data.blockDepth),
+                                  chamferRadius: CGFloat(previewDiameter/2))
          box.firstMaterial?.diffuse.contents = color
          node.addChildNode(SCNNode(geometry: box))
          
          // long edges
-         h                                       = CGFloat(width)
-         edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
+         h                                       = CGFloat(data.blockWidth)
+         edge                                    = SCNCapsule(capRadius: CGFloat(previewDiameter/2), height: h)
          edge.radialSegmentCount                 = 12
-         edge.firstMaterial?.diffuse.contents    = edgeColor
+         edge.firstMaterial?.diffuse.contents    = blockColor
          edgeNode                                = SCNNode(geometry: edge)
-         edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
-         edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
+         edgeNode.position.y                     = CGFloat(data.blockHeight - previewDiameter)        * (-0.5)
+         edgeNode.position.z                     = CGFloat(data.blockDepth - previewDiameter)         * (-0.5)
          edgeNode.eulerAngles.x                  = .pi / 2
          edgeNode.eulerAngles.y                  = .pi / 2
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
-         edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
+         edgeNode.position.y                     = CGFloat(data.blockHeight - previewDiameter)        * (-0.5)
+         edgeNode.position.z                     = CGFloat(data.blockDepth - previewDiameter)         * (0.5)
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
-         edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
+         edgeNode.position.y                     = CGFloat(data.blockHeight - previewDiameter)        * (0.5)
+         edgeNode.position.z                     = CGFloat(data.blockDepth - previewDiameter)         * (-0.5)
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
-         edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
+         edgeNode.position.y                     = CGFloat(data.blockHeight - previewDiameter)        * (0.5)
+         edgeNode.position.z                     = CGFloat(data.blockDepth - previewDiameter)         * (0.5)
          node.addChildNode(edgeNode)
          
          // short edges
-         h                                       = CGFloat(height)
-         edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
+         h                                       = CGFloat(data.blockHeight)
+         edge                                    = SCNCapsule(capRadius: CGFloat(previewDiameter/2), height: h)
          edge.radialSegmentCount                 = 12
-         edge.firstMaterial?.diffuse.contents    = edgeColor
+         edge.firstMaterial?.diffuse.contents    = blockColor
          edgeNode                                = SCNNode(geometry: edge)
          edgeNode.eulerAngles.y                  = .pi / 2
-         edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
-         edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
+         edgeNode.position.z                     = CGFloat(data.blockDepth - previewDiameter)         * (-0.5)
+         edgeNode.position.x                     = CGFloat(data.blockWidth - previewDiameter)         * (-0.5)
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
-         edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
+         edgeNode.position.z                     = CGFloat(data.blockDepth - previewDiameter)         * (0.5)
+         edgeNode.position.x                     = CGFloat(data.blockWidth - previewDiameter)         * (-0.5)
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.z                     = CGFloat(depth - diameter)         * (-0.5)
-         edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
+         edgeNode.position.z                     = CGFloat(data.blockDepth - previewDiameter)         * (-0.5)
+         edgeNode.position.x                     = CGFloat(data.blockWidth - previewDiameter)         * (0.5)
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.z                     = CGFloat(depth - diameter)         * (0.5)
-         edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
+         edgeNode.position.z                     = CGFloat(data.blockDepth - previewDiameter)         * (0.5)
+         edgeNode.position.x                     = CGFloat(data.blockWidth - previewDiameter)         * (0.5)
          node.addChildNode(edgeNode)
          
-         h                                       = CGFloat(depth)
-         edge                                    = SCNCapsule(capRadius: CGFloat(diameter/2), height: h)
+         h                                       = CGFloat(data.blockDepth)
+         edge                                    = SCNCapsule(capRadius: CGFloat(previewDiameter/2), height: h)
          edge.radialSegmentCount                 = 12
-         edge.firstMaterial?.diffuse.contents    = edgeColor
+         edge.firstMaterial?.diffuse.contents    = blockColor
          edgeNode                                = SCNNode(geometry: edge)
          edgeNode.eulerAngles.x                  = .pi / 2
-         edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
-         edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
+         edgeNode.position.x                     = CGFloat(data.blockWidth - previewDiameter)         * (-0.5)
+         edgeNode.position.y                     = CGFloat(data.blockHeight - previewDiameter)        * (-0.5)
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
-         edgeNode.position.y                     = CGFloat(height - diameter)        * (-0.5)
+         edgeNode.position.x                     = CGFloat(data.blockWidth - previewDiameter)         * (0.5)
+         edgeNode.position.y                     = CGFloat(data.blockHeight - previewDiameter)        * (-0.5)
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.x                     = CGFloat(width - diameter)         * (-0.5)
-         edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
+         edgeNode.position.x                     = CGFloat(data.blockWidth - previewDiameter)         * (-0.5)
+         edgeNode.position.y                     = CGFloat(data.blockHeight - previewDiameter)        * (0.5)
          node.addChildNode(edgeNode)
          
          edgeNode                                = edgeNode.clone()
-         edgeNode.position.x                     = CGFloat(width - diameter)         * (0.5)
-         edgeNode.position.y                     = CGFloat(height - diameter)        * (0.5)
+         edgeNode.position.x                     = CGFloat(data.blockWidth - previewDiameter)         * (0.5)
+         edgeNode.position.y                     = CGFloat(data.blockHeight - previewDiameter)        * (0.5)
          node.addChildNode(edgeNode)
          
-         node.pivot                              = SCNMatrix4MakeTranslation(CGFloat(-width)/2.0, CGFloat(-height)/2.0, CGFloat(depth)/2.0);
-         node.eulerAngles.y                      = CGFloat(rotationY / 180.0 * .pi)
-         node.eulerAngles.z                      = CGFloat(rotationX / 180.0 * .pi)
-         node.eulerAngles.x                      = CGFloat(-rotationW / 180.0 * .pi)
+         node.pivot                              = SCNMatrix4MakeTranslation(CGFloat(-data.blockWidth)/2.0, CGFloat(-data.blockHeight)/2.0, CGFloat(data.blockDepth)/2.0);
+         node.eulerAngles.y                      = CGFloat(data.blockRotation / 180.0 * .pi)
+         node.eulerAngles.z                      = CGFloat(/* rotationX */ 0.0 / 180.0 * .pi)
+         node.eulerAngles.x                      = CGFloat(/*-rotationW */ 0.0 / 180.0 * .pi)
          
-         node.position.y                         = CGFloat(y)
-         node.position.z                         = CGFloat(-x)
-         node.position.x                         = CGFloat(w)
+         node.position.y                         = CGFloat(data.blockSpacingUnder)
+         node.position.z                         = CGFloat(-data.blockSpacingFront)
+         node.position.x                         = CGFloat(data.blockSpacingLeft)
+        
          
-         
-         return node
+         blockNode.removeFromParentNode()
+         blockNode                = node
+         blockNode.isHidden       = !self.showBlockGraph
+         previewNode.addChildNode(blockNode)
+
      }
     // MARK: - Supportfunctions
     
@@ -2180,7 +2515,8 @@ class FCalc {
         case .shape:                    return .header
         case .shapeWidth:               return .double
         case .shapeSpacingLeft:         return .double
-        case .shapeRotation:            return .double
+        case .shapeRotationY:           return .double
+        case .shapeRotationW:           return .double
         case .shapeX:                   return .double
         case .shapeY:                   return .double
         case .shapeChangeAxis:          return .boolean
@@ -2232,7 +2568,8 @@ class FCalc {
              .showShapeCutGraph,
              .shapeWidth,
              .shapeSpacingLeft,
-             .shapeRotation,
+             .shapeRotationY,
+             .shapeRotationW,
              .shapeX,
              .shapeY,
              .shapeChangeAxis,
@@ -2281,7 +2618,8 @@ class FCalc {
         case .shape:                    return "Shape"
         case .shapeWidth:               return "Width [mm]:"
         case .shapeSpacingLeft:         return "Left spacing to machine [mm]:"
-        case .shapeRotation:            return "Rotation around lower left corner [°]:"
+        case .shapeRotationY:           return "Z-Rotation around lower left corner [°]:"
+        case .shapeRotationW:           return "W-Rotation around lower left corner [°]:"
         case .shapeX:                   return "X movement"
         case .shapeY:                   return "Y movement"
         case .shapeChangeAxis:          return "Change axis:"
@@ -2327,7 +2665,8 @@ class FCalc {
         case .blockRotation:            return dtos(data.blockRotation,          decimals: 0, true)
         case .shapeWidth:               return dtos(data.shapeWidth,             decimals: 0, true)
         case .shapeSpacingLeft:         return dtos(data.shapeSpacingLeft,       decimals: 0, true)
-        case .shapeRotation:            return dtos(data.shapeRotation,          decimals: 0, true)
+        case .shapeRotationY:           return dtos(data.shapeRotationY,         decimals: 0, true)
+        case .shapeRotationW:           return dtos(data.shapeRotationW,         decimals: 0, true)
         case .shapeX:                   return dtos(data.shapeX,                 decimals: data.gcodeDecimals, true)
         case .shapeY:                   return dtos(data.shapeY,                 decimals: data.gcodeDecimals, true)
         case .shapeChangeAxis:          return btos(data.shapeChangeAxis)
@@ -2374,7 +2713,8 @@ class FCalc {
         case .blockRotation:            return value.isValidDouble(0, -90.0, 90.0)
         case .shapeWidth:               return value.isValidDouble(0, 0, data.cutterWidth)
         case .shapeSpacingLeft:         return value.isValidDouble(0, 0, data.cutterWidth - data.shapeWidth)
-        case .shapeRotation:            return value.isValidDouble(0, -90.0, 90.0)
+        case .shapeRotationY:           return value.isValidDouble(0, -90.0, 90.0)
+        case .shapeRotationW:           return value.isValidDouble(0, -180.0, 180.0)
         case .shapeX:                   return value.isValidDouble(data.gcodeDecimals, -1000.0)
         case .shapeY:                   return value.isValidDouble(data.gcodeDecimals, -1000.0)
         case .shapeChangeAxis:          return true
@@ -2419,7 +2759,8 @@ class FCalc {
         case .blockRotation:            data.blockRotation           = stod(value, true);     break;
         case .shapeWidth:               data.shapeWidth              = stod(value, true);     break;
         case .shapeSpacingLeft:         data.shapeSpacingLeft        = stod(value, true);     break;
-        case .shapeRotation:            data.shapeRotation           = stod(value, true);     break;
+        case .shapeRotationY:           data.shapeRotationY          = stod(value, true);     break;
+        case .shapeRotationW:           data.shapeRotationW          = stod(value, true);     break;
         case .shapeX:                   data.shapeX                  = stod(value, true);     break;
         case .shapeY :                  data.shapeY                  = stod(value, true);     break;
         case .shapeChangeAxis:          data.shapeChangeAxis         = stob(value);
@@ -2436,34 +2777,70 @@ class FCalc {
                                         break;
         case .showAxisGraph:            self.showAxisGraph           = stob(value);
                                         axisNode.isHidden            = !self.showAxisGraph
-                                        return
+                                        break
         case .showShapeGraph:           self.showShapeGraph          = stob(value);
                                         shapeNode.isHidden           = !self.showShapeGraph
                                         mergingShapeNode.isHidden    = !self.showShapeGraph
-                                        return
+                                        break
         case .showCutterGraph:          self.showCutterGraph         = stob(value);
                                         cutterNode.isHidden          = !self.showCutterGraph
-                                        return
+                                        break
         case .showBlockGraph:           self.showBlockGraph          = stob(value);
                                         blockNode.isHidden           = !self.showBlockGraph
-                                        return
+                                        break
         case .showShapeCutGraph:        self.showShapeCutGraph       = stob(value);
                                         shapeCutNode.isHidden        = !self.showShapeCutGraph
                                         mergingShapeCutNode.isHidden = !self.showShapeCutGraph
-                                        return
+                                        break
         case .simulationSpeed:          self.simulationSpeed         = stod(value, true);     break;
         case .previewDiameter:          self.previewDiameter         = stod(value, true);     break;
-        case .hotwireSettingComment:    data.hotwireSettingComment   = value ?? ""
-        case .blockMaterialComment:     data.blockMaterialComment    = value ?? ""
+        case .hotwireSettingComment:    data.hotwireSettingComment   = value ?? "";           break;
+        case .blockMaterialComment:     data.blockMaterialComment    = value ?? "";           break;
         default: return
         }
-        if initial == true {     // skip postprocessing fo new data, if it is an initial Load
+        
+        
+        if initial == true {     // skip postprocessing for new data, if it is an initial Load
             return
         }
         saveReg()
-        // neu berechnen und Graph aktualisieren
-        _ = calculateShape()
-        _ = generatePreview()
+        
+        switch (key) {
+        case .cutterWidth,
+             .cutterHeight,
+             .cutterDepth,
+             .shapeWidth,
+             .shapeSpacingLeft,
+             .shapeRotationY,
+             .shapeRotationW,
+             .shapeX,
+             .shapeY,
+             .shapeChangeAxis,
+             .shapeMirrorHorizontal,
+             .shapeMirrorVertical,
+             .shapeReverse,
+             .previewDiameter:          // neu berechnen und Graph aktualisieren
+                                        _ = calculateShape()
+                                        _ = generatePreview()
+                                        break
+        case .targetFeedSpeed,
+             .maxFeedSpeed,
+             .feedSpeedCorrection,
+             .fastPretravel,
+             .pretravelSpeed:           _ = calculateShape()    // nur neu berechnen
+                                        break
+            
+        case .blockWidth,
+             .blockHeight,
+             .blockDepth,
+             .blockSpacingLeft,
+             .blockSpacingFront,
+             .blockSpacingUnder,
+             .blockRotation:            generateFoamBlockNode()
+                                        break
+        
+        default: return
+        }
     }
    
     func valueFor(_ key: PositionTableKey, index: Int) -> String? {
@@ -2562,9 +2939,15 @@ class FCalc {
         default:
             return
         }
+        
+        stop()                                      // stop the simulation
         calculatePosition(position, source: key)
+        _ = calculateShape()                        // damit sind auch die Speed berechnungen aktuell
         requestUpdatePositionsTable(index)
-        _ = generatePreview()
+        
+        generateShapeNode(index: index)
+        generateShapeCutNode(index: index)
+        generateAxisNode(index: index)
         
         return
     }
@@ -2798,3 +3181,4 @@ extension Color {
         return (r, g, b, a)
     }
 }
+
