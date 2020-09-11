@@ -144,6 +144,7 @@ Please have a lock at the parameters (command $$ over Serial Monitor)
   - set or travel to a temporary home position
   - set or travel to a temporary zero position
   - 8 buttons to control the movements (not available, if USE_BUTTONS is set to 0)
+  - switch speed between feed and homing seek for fast traveling (selected homing seek speed is indicated by LED
 - SD-Card
   - read file list from SD-Card (only with defined file extensions (config.h), only from root directory, keep filenames short)
   - execute a file from the SD-Card
