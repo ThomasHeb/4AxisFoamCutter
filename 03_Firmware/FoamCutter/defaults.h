@@ -43,7 +43,7 @@
   #define DEFAULT_STEP_PULSE_MICROSECONDS 10
   #define DEFAULT_MM_PER_ARC_SEGMENT      0.1
 
-  #define DEFAULT_RAPID_FEEDRATE          500         // mm/min
+  #define DEFAULT_SEEKRATE                1500         // mm/min
   #define DEFAULT_FEEDRATE                500
 
   #define DEFAULT_FEEDRATE_MAX            1500

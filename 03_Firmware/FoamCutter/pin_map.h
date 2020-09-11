@@ -159,9 +159,9 @@
 #define PIN_BTN_BACK        59
 #define PIN_BTN_HOTWIRE     40
 
-#define PIN_BTN_NONE_0      44
+#define PIN_BTN_SPEED       44
 #define PIN_LED_HOTWIRE     65
-#define PIN_LED_NONE_0      66
+#define PIN_LED_SPEED       66
 
 #define PIN_BTN_X_MINUS     42
 #define PIN_BTN_X_PLUS      6

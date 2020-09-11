@@ -76,12 +76,12 @@
 //  - Fans 12V DC for cooling Stepper Driver, Ramps, Power Supply,....
 //  - 2x LED + 2x 2k2 to GND
 //    - Hotwire:    D65
-//    - unused:     D66
+//    - Speed:      D66
 //  - 12x Buttons NO, connected to GND (see pin_map.h)
 //    - Stopp:      D63     do not change the stopp button is monitored by IRQ
 //    - Back:       D59    
 //    - Hotwire:    D40
-//    - unused:     D44
+//    - Speed:      D44     used to change between feed & seek during positioning
 //    - X minus:    D42
 //    - X plus:     D6   
 //    - Y minus:    D58
