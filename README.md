@@ -293,6 +293,7 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 
 I was asked, if the hardware is working without the post processor or with other tools. The answer is yes. You can use tools like devFoam or jedicut to generate gcode and store it on the SD Card or even send it direktly over the USB interface.
 If you want to cut out simple shapes like letters, you can even work only inside SketchUp.
+![simple sample](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/simple_sample.png)
 Checkout the video [Simple Shape in SketchUp w/o using post processing](https://youtu.be/lMjuI5fZvUQ)
 
 If you want to add some gcode commands and headers to the SketchUp Foamcutter.rb exported file, follow this lines:
