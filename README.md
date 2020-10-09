@@ -319,7 +319,7 @@ G4P5
 
 G90X0.0Y13.5U0.0Z13.5   >>>  G1F100X0.0Y13.5U0.0Z13.5
 
-- add ad the very end the commands to switch of the hotwire
+- add at the very end the commands to switch of the hotwire
 
 G4P1
 
