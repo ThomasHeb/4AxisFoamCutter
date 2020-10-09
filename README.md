@@ -38,7 +38,7 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [Feed speed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
 - [Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
 - [Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
-
+- [Simple Shape in SketchUp w/o using post processing](https://youtu.be/lMjuI5fZvUQ)
 
 # Mechanics
 - 4x linear v-slot actuator with NEMA 17
@@ -288,5 +288,30 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 - [Part 1](https://youtu.be/n6ZeKAKcKlE)
 - [Part 2](https://youtu.be/POwDu0zc9eI)
 
+
+# Simple Shapes without using the post processor
+
+I was asked, if the hardware is working without the post processor or with other tools. The answer is yes. You can use tools like devFoam or jedicut to generate gcode and store it on the SD Card or even send it direktly over the USB interface.
+If you want to cut out simple shapes like letters, you can even work only inside SketchUp.
+Checkout the video [Simple Shape in SketchUp w/o using post processing](https://youtu.be/lMjuI5fZvUQ)
+
+If you want to add some gcode commands and headers to the SketchUp Foamcutter.rb exported file, follow this lines:
+- save the exported file with the extension .gcode (executable from SD Card)
+- open the file with a text editor
+- add the following lines at the beginning of the file, to setup the coordination system, use absolute coordinates, feed speed of 100 mm/min (F100), hotwire powersetting of 90% (S90), and switch the hotwire on.
+G17
+G21
+G94
+G90F100S90
+G4P1
+M3
+G4P5
+
+- replace the G90 with G1Fxxx, Fxxx is the feed speed, i.e. F100 for 100mm/min
+G90X0.0Y13.5U0.0Z13.5   >>>  G1F100X0.0Y13.5U0.0Z13.5
+
+- add ad the very end the commands to switch of the hotwire
+G4P1
+M5
 
 
