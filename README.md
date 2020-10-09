@@ -300,19 +300,29 @@ If you want to add some gcode commands and headers to the SketchUp Foamcutter.rb
 - save the exported file with the extension .gcode (executable from SD Card)
 - open the file with a text editor
 - add the following lines at the beginning of the file, to setup the coordination system, use absolute coordinates, feed speed of 100 mm/min (F100), hotwire powersetting of 90% (S90), and switch the hotwire on.
+
 G17
+
 G21
+
 G94
+
 G90F100S90
+
 G4P1
+
 M3
+
 G4P5
 
 - replace the G90 with G1Fxxx, Fxxx is the feed speed, i.e. F100 for 100mm/min
+
 G90X0.0Y13.5U0.0Z13.5   >>>  G1F100X0.0Y13.5U0.0Z13.5
 
 - add ad the very end the commands to switch of the hotwire
+
 G4P1
+
 M5
 
 
