@@ -326,3 +326,8 @@ G4P1
 M5
 
 
+See folder 99_sample in the code section:
+- sample_1.gcode is the export file from foamcutter.rb (SketchUp) 
+- sample_2.gcode header and commandes were modified manually with text-editor
+- sample_pp.gcode is generated with post processor
+
