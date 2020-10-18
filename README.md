@@ -88,6 +88,7 @@ App. 30W are needed for Ramps, display, stepper and Arduino. In addition require
 To select the right power supply, you need to keep estimate the power for the hotwire (see chapter Hotwire), power for Arduino, Display,... (app 30W) and the fans (20W for the small ones I am using), see chapter Power supply.
 In my setup, nothing is getting hot, so I do not switch the fans on.... you do not really need fans.
 Please check your power supply, if cooling is required. Please keep all standards and safety topics in mind, when handling with high voltage on power supply, best is to contact an authorised specialist.
+A detailed list of all connections/wiring is included in the foamcutter.ino file.
 
 Advantage:
 - separate voltage for hotwire, helps to select best resistance wire, see chapter Hotwire. Especially with a small diameter: Higher hotwire voltage allows to have less current in the hotwire, select thiner wires with a higher wire resistance.
@@ -103,6 +104,7 @@ A power supply is used 12V DC output, because on the Arduino a linear voltage re
 App. 30W are needed for Ramps, display, stepper and Arduino. In addition required power for the fans and the hotwire (see chapter Hotwire and Power supply).
 I did not build a version with Ramps 1.6, but checking all the data sheets and diagrams, there should be no fan required for additional cooling of the Ramps board itself.
 Please check your power supply, if cooling is required. Please keep all standards and safety topics in mind, when handling with high voltage on power supply, best is to contact an authorised specialist.
+A detailed list of all connections/wiring is included in the foamcutter.ino file.
 
 Advantage:
 no DC/DC converter is needed
