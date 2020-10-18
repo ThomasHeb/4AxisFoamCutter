@@ -107,8 +107,8 @@ Please check your power supply, if cooling is required. Please keep all standard
 A detailed list of all connections/wiring is included in the foamcutter.ino file.
 
 Advantage:
-no DC/DC converter is needed
-less wiring
+- no DC/DC converter is needed
+- less wiring
 
 Disadvantage:
 - lower voltage for hotwire requires higher current  to achieve power for cutting. hotwire is getting thicker.
