@@ -69,6 +69,8 @@ Most of it is plugged together straight forward. A detailed list is included in 
 ![hardware_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/hardware_1.JPG)
 ![hardware_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/hardware_2.JPG)
 
+### Blockdiagram for Ramps 1.4
+
 
 ### Operation without buttons, leds and limit switches (minimum operation setup)
 There are some sets available for 3D printer, including Arduino Mega, Ramps 1.4, 128x64 Display with SD card reader and stepper driver 4988. The firmware can be configured to operate especially with this hardware setup, without buttons, led and limit switches. The usability is limited, but almost no soldering is needed.
