@@ -95,8 +95,8 @@
 //      set USE_BUTTONS to 0, see config.h 
 // 
 // Modifications of Hardware:
-//  - cut-off Arduino PIN 10 on Ramps 
-//  - connect Arduino Pin 7 on Ramps to Socket off PIN 10
+//  - cut-off Arduino PIN 10 on Ramps (not required if no Fan is connectet) 
+//  - connect Arduino Pin 7 on Ramps to Socket off PIN 10 (not required if no Fan is connectet) 
 //  - to reduce EMC connect 100 nF between S and - close to Ramps for limit switches / end stopps
 //  - to reduce EMC connect 100 nF between D63 and GND directly on Ramps pin header for AUX-2 (not required if stopp button is close to ramps) 
 //

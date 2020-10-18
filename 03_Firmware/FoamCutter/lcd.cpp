@@ -943,12 +943,11 @@ void lcd_process_menue_position() {
  #endif     
       lcd.sendBuffer();
     }
- #if (USE_BUTTONS == 1) 
     char   gc_c[20];
     String gc_command;
     String gc_step;
     float  speed;
-
+ #if (USE_BUTTONS == 1) 
     speed =  settings.default_feed_rate;
     if (lcd_data.use_seek_speed != 0) {
       speed =  settings.homing_seek_rate;
