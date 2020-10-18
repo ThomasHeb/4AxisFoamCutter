@@ -1,3 +1,13 @@
+## What is new?
+- Added blockdiagrams for setup with Ramps 1.4 / Ramps 1.6
+- Added selection guide for hotwire and power supply
+- Fans are optional, if not connected, Pin 10 do not need to be cuttet
+- Added chapter "Simple Shapes without using the post processor"
+
+## What is comming next?
+- Simple postprocessor integrated in SketchUp tool Foamcutter.rb
+
+
 # 4AxisFoamCutter
 
 Arduino based CNC foam cutter with display and SD-Card.
@@ -70,11 +80,11 @@ Most of it is plugged together straight forward. A detailed list is included in 
 ![hardware_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/hardware_2.JPG)
 
 ### Blockdiagram for Ramps 1.4
-![blockdiagram_ramps14](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/Blockdiagram_Rams14.png)
+![blockdiagram_ramps14](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/Blockdiagram_Ramps14.png)
 A power supply is used with up to max 35V (limit of on board MOSFET on the Ramps) to supply the hotwire and the DC/DC converter. Refer to chapter Hotwire for voltage / power adjustment and selection of the right power supply.
 The DC/DC converter supplys 12V DC to the Ramps, display, stepper and Arduino. I would not recommend more than 12V DC, because on the Arduino a linear voltage regulator is used to generate 5V DC and this can be easily over powered / heated, when input voltage is to high.
 App. 30W are needed for Ramps, display, stepper and Arduino. In addition required power for the fans. I am using this [DC/DC converter](https://www.amazon.de/gp/product/B00HV4EPG8/ref=ppx_yo_dt_b_asin_title_o01_s01?ie=UTF8&psc=1), powering 4 small fans.
-To select the right power supply, you need to keep estimate the power for the hotwire (see chapter Hotwire), power for Arduino, Display,... (app 30W) and the fans (20W for the small ones I am using).
+To select the right power supply, you need to keep estimate the power for the hotwire (see chapter Hotwire), power for Arduino, Display,... (app 30W) and the fans (20W for the small ones I am using), see chapter Power supply.
 In my setup, nothing is getting hot, so I do not switch the fans on.... you do not really need fans.
 Please check your power supply, if cooling is required. Please keep all standards and safety topics in mind, when handling with high voltage on power supply, best is to contact an authorised specialist.
 
@@ -86,9 +96,9 @@ Disadvantage:
 
 
 ### Blockdiagram for Ramps 1.6
-![blockdiagram_ramps16](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/Blockdiagram_Rams16.png)
+![blockdiagram_ramps16](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/Blockdiagram_Ramps16.png)
 A power supply is used 12V DC output, because on the Arduino a linear voltage regulator is used to generate 5V DC and this can be easily over powered / heated, when input voltage is to high.
-App. 30W are needed for Ramps, display, stepper and Arduino. In addition required power for the fans and the hotwire (see chapter Hotwire).
+App. 30W are needed for Ramps, display, stepper and Arduino. In addition required power for the fans and the hotwire (see chapter Hotwire and Power supply).
 I did not build a version with Ramps 1.6, but checking all the data sheets and diagrams, there should be no fan required for additional cooling of the Ramps board itself.
 Please check your power supply, if cooling is required. Please keep all standards and safety topics in mind, when handling with high voltage on power supply, best is to contact an authorised specialist.
 
@@ -149,6 +159,16 @@ If your wire is getting much too hot / cutting is starting below 50% powersettin
 - choose a wire with higher resistance >>> smaller diameter ;)
 
 Start fine-tuning again until you are happy with the result.
+
+
+### Power Supply
+Selecting the right power supply is mainly based on four factors
+- input voltage, select this according your region and local 
+- choosing a power supply to integrate in the foam cutter or as a separate power supply (i.e. laboratory power supply)
+- output voltage 12V DC or up to 35V DC. I would not recommend to use more than 60V DC because of risk of electrical shock)
+- required power: 30W for Arduino, Display, Stepper + Fans (I use small 12V DC fans with total 20W) + hotwire Ptotal (see chapter Hotwire)
+
+Please keep all standards and safety topics in mind, when handling with high voltage on power supply, best is to contact an authorised specialist.
 
 
 ### Operation without buttons, leds and limit switches (minimum operation setup)
