@@ -70,6 +70,85 @@ Most of it is plugged together straight forward. A detailed list is included in 
 ![hardware_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/hardware_2.JPG)
 
 ### Blockdiagram for Ramps 1.4
+![blockdiagram_ramps14](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/Blockdiagram_Rams14.png)
+A power supply is used with up to max 35V (limit of on board MOSFET on the Ramps) to supply the hotwire and the DC/DC converter. Refer to chapter Hotwire for voltage / power adjustment and selection of the right power supply.
+The DC/DC converter supplys 12V DC to the Ramps, display, stepper and Arduino. I would not recommend more than 12V DC, because on the Arduino a linear voltage regulator is used to generate 5V DC and this can be easily over powered / heated, when input voltage is to high.
+App. 30W are needed for Ramps, display, stepper and Arduino. In addition required power for the fans. I am using this [DC/DC converter](https://www.amazon.de/gp/product/B00HV4EPG8/ref=ppx_yo_dt_b_asin_title_o01_s01?ie=UTF8&psc=1), powering 4 small fans.
+To select the right power supply, you need to keep estimate the power for the hotwire (see chapter Hotwire), power for Arduino, Display,... (app 30W) and the fans (20W for the small ones I am using).
+In my setup, nothing is getting hot, so I do not switch the fans on.... you do not really need fans.
+Please check your power supply, if cooling is required. Please keep all standards and safety topics in mind, when handling with high voltage on power supply, best is to contact an authorised specialist.
+
+Advantage:
+- separate voltage for hotwire, helps to select best resistance wire, see chapter Hotwire. Especially with a small diameter: Higher hotwire voltage allows to have less current in the hotwire, select thiner wires with a higher wire resistance.
+
+Disadvantage:
+- additional hardware (DC/DC converter) needed, app 10 EUR 
+
+
+### Blockdiagram for Ramps 1.6
+![blockdiagram_ramps16](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/Blockdiagram_Rams16.png)
+A power supply is used 12V DC output, because on the Arduino a linear voltage regulator is used to generate 5V DC and this can be easily over powered / heated, when input voltage is to high.
+App. 30W are needed for Ramps, display, stepper and Arduino. In addition required power for the fans and the hotwire (see chapter Hotwire).
+I did not build a version with Ramps 1.6, but checking all the data sheets and diagrams, there should be no fan required for additional cooling of the Ramps board itself.
+Please check your power supply, if cooling is required. Please keep all standards and safety topics in mind, when handling with high voltage on power supply, best is to contact an authorised specialist.
+
+Advantage:
+no DC/DC converter is needed
+less wiring
+
+Disadvantage:
+- lower voltage for hotwire requires higher current  to achieve power for cutting. hotwire is getting thicker.
+
+
+### Other Boards
+Other boards may works, as long as they are based on the same or similar pin connection as the Ramps does. See Issues and search for MKS Board.
+
+### Hotwire
+Selecting the right hotwire is a bit tricky
+I am cutting XPS foam with a very slow feed rate (100mm/min) for gut results.
+On my machine I have 20 W/m (watt per meter) to achieve good results. For calculation I would recommend to use 25 W/m (fine tuning can be done in power setting parameter).
+
+Get the length L of your hotwire. Keep in mind that you have diagonal traveling of the hotwire, so the wire length is more than the machine width.
+Get the Input voltage Ui for the hotwire (Ramps 1.4: app 30V (max 35V) / Ramps 1.6: 12V)
+Calculate the total wire resistance Rtotal and the wire resistance per feet Rf
+
+- Ptotal = L x 25 W/m
+- Rtotal = Ui x Ui / Ptotal
+- Rf = Rtotal / (L (in m) x 3,28)
+
+The higher the input voltage Ui is, the higher is Rf, the lower the current through the wire and the MOSFET on the ramps. the MOSFET will stay cooler and most important, you can select thiner wires.
+Now you can find the best fitting wire by checking the wire resistance per feet (Ohm/feet).
+
+Example:
+Total Hotwire length L = 0,9m. power supply works with output voltage of 30V (= Ui).
+Ptotal = 0,9 x 25W/m = 22,5 W
+Rtotal = 30 x 30 / 22,5 = 40 Ohm
+Rf = 40 / (0,9 x 3,28) = 13 Ohm per feet
+I would go for 
+Kanthal A1 32G with 13,1 Ohm/feet [Link](https://www.amazon.com/-/de/dp/B07CHTFJ3J/ref=pd_di_sccai_5/131-7260915-9702510?_encoding=UTF8&pd_rd_i=B07CHTFJ3J&pd_rd_r=eb18fb47-92c0-47da-b5dc-7e59002d935c&pd_rd_w=vtYcG&pd_rd_wg=2XH1R&pf_rd_p=5415687b-2c9d-46da-88a4-bbcfe8e07f3c&pf_rd_r=RDJ038J453586JV20FEB&psc=1&refRID=RDJ038J453586JV20FEB)
+
+Due to the calculation with 25W/m you will need to reduce power setting parameter for hotwire a bit to app 90…90%
+
+
+
+Next step is to fine tune all your settings
+- Go to the hotwire menu , select manual and start with a low power setting.
+- Put some foam on it... the foam should not be cut.
+- increase power setting until the foam is cut without putting force/weight on it. this is the setting for slow cutting speed (app 100 mm/min). Check out the [video](https://github.com/ThomasHeb/4AxisFoamCutter/files/5382446/IMG_4588.mov.zip).
+- Put this setting into the parameter ($5 = feed speed and $27 = hotwire power is stored automatically from your last manual setting).
+
+If your wire is not getting hot enough:
+- increase input voltage (only with ramps 1.4: 28V >>> 30V)
+- reduce wire length (put the crocodile connections closer together)
+- chose a wire with a lower resistance .... thicker wire ;(
+
+If your wire is getting much too hot / cutting is starting below 50% powersetting:
+- there is no urgent need to change something
+- reduce the voltage a bit. don't go below 10V to have enough power for the stepper
+- increase wire length
+- choose a wire with higher resistance >>> smaller diameter ;)
+
+Start fine-tuning again until you are happy with the result.
 
 
 ### Operation without buttons, leds and limit switches (minimum operation setup)
@@ -80,8 +159,8 @@ To use this setup, simply skip all steps related to limit switches, buttons and 
 
 
 ### Modifications of Hardware:
-- cut-off Arduino PIN 10 on Ramps (just cut of the pin-header on the Ramps 
-- connect Arduino Pin 7 on Ramps to Socket off pin 10
+- cut-off Arduino PIN 10 on Ramps (just cut of the pin-header on the Ramps) (not required if no fan is connected) 
+- connect Arduino Pin 7 on Ramps to Socket off pin 10 (not required if no fan is connected) 
 - to reduce EMC connect 100 nF between S and - close to Ramps for limit switches / end stops
 - to reduce EMC connect 100 nF between D63 and GND directly on Ramps pin header for AUX-2 (not required if stopp button is close to ramps) 
 
