@@ -186,8 +186,8 @@ void report_grbl_settings() {
     printPgmString (PSTR ("$0=") );
     printFloat (settings.steps_per_mm[X_AXIS]); printPgmString (PSTR (" (x, step/mm)\r\n$1=") );
     printFloat (settings.steps_per_mm[Y_AXIS]); printPgmString (PSTR (" (y, step/mm)\r\n$2=") );
-    printFloat (settings.steps_per_mm[U_AXIS]); printPgmString (PSTR (" (z, step/mm)\r\n$3=") );
-    printFloat (settings.steps_per_mm[Z_AXIS]); printPgmString (PSTR (" (u, step/mm.)\r\n$4=") );
+    printFloat (settings.steps_per_mm[U_AXIS]); printPgmString (PSTR (" (u, step/mm)\r\n$3=") );
+    printFloat (settings.steps_per_mm[Z_AXIS]); printPgmString (PSTR (" (z, step/mm.)\r\n$4=") );
   //printFloat (to_degrees(settings.steps_per_mm[U_AXIS])); printPgmString (PSTR (" (t, step/deg.)\r\n$4=") );
 
     printInteger (settings.pulse_microseconds); printPgmString (PSTR (" (step pulse, usec)\r\n$5=") );
