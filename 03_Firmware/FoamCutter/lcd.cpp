@@ -21,6 +21,40 @@ U8G2_ST7920_128X64_F_SW_SPI lcd(U8G2_R0, //orientation
 #include "report.h"
 #include "protocol.h"
 
+
+
+// Enable weak pullups
+#define DIR_NONE        0x0
+#define DIR_CW          0x10
+#define DIR_CCW         0x20
+#define R_START         0x0
+
+#define R_CW_FINAL      0x1
+#define R_CW_BEGIN      0x2
+#define R_CW_NEXT       0x3
+#define R_CCW_BEGIN     0x4
+#define R_CCW_FINAL     0x5
+#define R_CCW_NEXT      0x6
+
+const unsigned char ttable[7][4] = {
+  // R_START
+  {R_START,    R_CW_BEGIN,  R_CCW_BEGIN, R_START},
+  // R_CW_FINAL
+  {R_CW_NEXT,  R_START,     R_CW_FINAL,  R_START | DIR_CW},
+  // R_CW_BEGIN
+  {R_CW_NEXT,  R_CW_BEGIN,  R_START,     R_START},
+  // R_CW_NEXT
+  {R_CW_NEXT,  R_CW_BEGIN,  R_CW_FINAL,  R_START},
+  // R_CCW_BEGIN
+  {R_CCW_NEXT, R_START,     R_CCW_BEGIN, R_START},
+  // R_CCW_FINAL
+  {R_CCW_NEXT, R_CCW_FINAL, R_START,     R_START | DIR_CCW},
+  // R_CCW_NEXT
+  {R_CCW_NEXT, R_CCW_FINAL, R_CCW_BEGIN, R_START},
+};
+
+
+
 // SdFat sd card
 SdFat sd;
 // Directory file.
@@ -55,6 +89,7 @@ typedef struct {
   uint32_t  buttons_prev;            // previous state of buttons
   uint32_t  buttons_cnt;             // counter to stabilize the buttons
   uint32_t  buttons_image;           // image of the current buttons to be stabilized
+  uint8_t   encoder_state;           // rotary encoder State
   uint8_t   refresh; 
   float     fvalue;
   float     cutting_start_position[N_AXIS];
@@ -201,14 +236,14 @@ void lcd_init() {
   lcd_data.buttons_cnt                = 0;
   lcd_data.refresh                    = 1;
   lcd_data.use_seek_speed             = 0;
+  lcd_data.encoder_state              = R_START;
   
   lcd_data.cutting_start_position[X_AXIS]  = 0;
   lcd_data.cutting_start_position[Y_AXIS]  = 0;
   lcd_data.cutting_start_position[U_AXIS]  = 0;
   lcd_data.cutting_start_position[Z_AXIS]  = 0;
 
-  
-  
+   
   sd_data.errors                      = 0;
   sd_data.stateProcessFile            = 0;
   sd_data.lineBufferIndex             = 0;           
@@ -1850,6 +1885,15 @@ void lcd_process_menue_sdcard() {
 }
 
 
+// Process encoder
+uint8_t lcd_process_encoder() {
+  // Grab state of input pins.
+  uint8_t pinstate = (digitalRead(PIN_EN2) << 1) | digitalRead(PIN_EN1);
+  // Determine new state from the pins and state table.
+  lcd_data.encoder_state = ttable[lcd_data.encoder_state & 0xf][pinstate];
+  // Return emit bits, ie the generated event.
+  return lcd_data.encoder_state & 0x30;
+}
 
 void lcd_process(){
   // read the buttons and stabilize
@@ -1908,14 +1952,7 @@ void lcd_process(){
       lcd_data.buttons_redge    = (lcd_data.buttons ^ lcd_data.buttons_prev) & lcd_data.buttons;
       // check for falling edges
       lcd_data.buttons_fedge    = (lcd_data.buttons ^ lcd_data.buttons_prev) & lcd_data.buttons_prev; 
-      // decode the rotary switch
-      if (lcd_data.buttons_fedge & BTN_ROTARY_EN1) {
-        if (lcd_data.buttons & BTN_ROTARY_EN2) {
-          lcd_data.buttons_redge |= BTN_ROTARY_LEFT;
-        } else {
-          lcd_data.buttons_redge |= BTN_ROTARY_RIGHT;
-        }
-      }
+      
     } else {
       lcd_data.buttons_cnt      +=  1;
     }
@@ -1936,6 +1973,16 @@ void lcd_process(){
   }
 #endif
 
+  // process the encoder
+  uint8_t result = lcd_process_encoder();
+  if (result == DIR_CW) {
+    lcd_data.buttons_redge |= BTN_ROTARY_RIGHT;
+  } 
+  else if (result == DIR_CCW) {
+    lcd_data.buttons_redge |= BTN_ROTARY_LEFT;
+  }
+
+  
   // show and handle menues
   lcd_process_menue_welcome();
   lcd_process_menue_main();
