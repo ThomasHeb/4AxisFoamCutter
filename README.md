@@ -1,11 +1,16 @@
 ## What is new?
+- Rotary knob improved
+- Libraries for Arduino can be downloaded directly from here
 - Added blockdiagrams for setup with Ramps 1.4 / Ramps 1.6
 - Added selection guide for hotwire and power supply
-- Fans are optional, if not connected, Pin 10 do not need to be cuttet
+- Fans are optional, if not connected, Pin 10 do not need to be cutted
 - Added chapter "Simple Shapes without using the post processor"
+
 
 ## What is comming next?
 - Simple postprocessor integrated in SketchUp tool Foamcutter.rb
+
+
 
 
 # 4AxisFoamCutter
@@ -215,11 +220,16 @@ Many thanks to you, for writing and sharing this fantastic code.
 
 ### How to install:
 - Download the foamcutter firmware
-- Download the U8G2 lib (GitHub or via the Arduino IDE) 
-- Download the SdFat lib (GitHub or via the Arduino IDE)
-- Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h and U8x8Lib.cpp from the code section
+- Download the libraries
+ - directly this github:
+  - download: https://github.com/ThomasHeb/4AxisFoamCutter/tree/master/03_Firmware/libraries
+  - store in your ../Arduino/libraries/ folder (prefered, because updates of the original libraries may cause problems with grbl)
+ - or from the original authors:   
+  - Download the U8G2 lib (GitHub or via the Arduino IDE) 
+  - Download the SdFat lib (GitHub or via the Arduino IDE)
+  - Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h and U8x8Lib.cpp from the code section
 
-### Changes within the library U8G2:
+### Changes within the library U8G2 - only for information:
 Grbl uses almost all resources of the Arduino to control the stepper within an accurate timing. So the standard approach of Arduino is not working any more, because some resources are not available anymore for the Arduino framework. Within the U8G2 I use a software driven SPI on pin D50 to D52 (I didn’t check, if hardware driven SPI would work, too). The only thing I needed to change, was the required delay within the SPI. Therefore I changed the delay function to the grbl supported delay function.
 
 
