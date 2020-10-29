@@ -1,6 +1,6 @@
 ## What is new?
-- Rotary knob improved
-- Libraries for Arduino can be downloaded directly from here
+- Rotary knob improved (no library needed)
+- Libraries for Arduino can be downloaded directly from here (solving some issues with library updateds and conflicts with grbl)
 - Added blockdiagrams for setup with Ramps 1.4 / Ramps 1.6
 - Added selection guide for hotwire and power supply
 - Fans are optional, if not connected, Pin 10 do not need to be cutted
