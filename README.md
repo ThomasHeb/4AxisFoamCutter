@@ -75,7 +75,7 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - 4x 100nF capacitor
 - 12 buttons NO
 - 2x LED + resistor 2k2
-- DC-DC converter (in: > 30V, out 12V, app. 2A)
+- DC-DC converter (in: > 30V, out 12V, app. 2A), not for Ramps 1.6
 - optional: fans 12V
 - wire / connector
 
@@ -105,7 +105,7 @@ Disadvantage:
 ### Blockdiagram for Ramps 1.6
 ![blockdiagram_ramps16](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/Blockdiagram_Ramps16.png)
 
-A power supply is used 12V DC output, because on the Arduino a linear voltage regulator is used to generate 5V DC and this can be easily over powered / heated, when input voltage is to high.
+A power supply with 12V DC output is used, because on the Arduino a linear voltage regulator is used to generate 5V DC and this can be easily over powered / heated, when input voltage is to high.
 App. 30W are needed for Ramps, display, stepper and Arduino. In addition required power for the fans and the hotwire (see chapter Hotwire and Power supply).
 I did not build a version with Ramps 1.6, but checking all the data sheets and diagrams, there should be no fan required for additional cooling of the Ramps board itself.
 Please check your power supply, if cooling is required. Please keep all standards and safety topics in mind, when handling with high voltage on power supply, best is to contact an authorised specialist.
