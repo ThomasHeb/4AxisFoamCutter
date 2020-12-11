@@ -124,7 +124,7 @@ Other boards may works, as long as they are based on the same or similar pin con
 
 ### Hotwire
 Selecting the right hotwire is a bit tricky
-I am cutting XPS foam with a very slow feed rate (100mm/min) for gut results.
+I am cutting XPS foam with a very slow feed rate (100mm/min) for good results.
 On my machine I have 20 W/m (watt per meter) to achieve good results. For calculation I would recommend to use 25 W/m (fine tuning can be done in power setting parameter).
 
 Get the length L of your hotwire. Keep in mind that you have diagonal traveling of the hotwire, so the wire length is more than the machine width.
