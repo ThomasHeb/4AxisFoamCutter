@@ -5,10 +5,11 @@
 - Added selection guide for hotwire and power supply
 - Fans are optional, if not connected, Pin 10 do not need to be cutted
 - Added chapter "Simple Shapes without using the post processor"
+- Simple postprocessor integrated in SketchUp tool Foamcutter.rb
 
 
 ## What is comming next?
-- Simple postprocessor integrated in SketchUp tool Foamcutter.rb
+- ...
 
 
 
@@ -48,12 +49,12 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
 - [Working with SketchUp Part 2](https://youtu.be/SIh3zpsxGX4)
 - [Working with SketchUp Part 3](https://youtu.be/uU0HhuviuLE)
+- [Working with SketchUp Part 4](https://youtu.be/WJ8nHyDqIhs)
 - [Post processing Basics](https://youtu.be/D0ZCudA9wv8)
 - [Post processing merging shapes](https://youtu.be/Z-096iua6jk)
 - [Feed speed optimization with preprocessor](https://youtu.be/2PEHMFtozhw)
 - [Post processing code insides Part 1](https://youtu.be/n6ZeKAKcKlE)
 - [Post processing code insides Part 2](https://youtu.be/POwDu0zc9eI)
-- [Simple Shape in SketchUp w/o using post processing](https://youtu.be/lMjuI5fZvUQ)
 
 # Mechanics
 - 4x linear v-slot actuator with NEMA 17
@@ -306,14 +307,16 @@ I use SketchUp for generating the stl-files for my 3D printed parts. I would lov
 - Download foamcutter.rb from the code section
 
 ### Functionality and usage of foamcutter.rb
-Open the ruby code editor first and load and execute the foamcutter.rb. This adds 3 menus to the PlugIn menu. Inside the settings you can define some general settings, like inch/mm, used decimals, labels of the axis.
-
-With the tool itself, you are asked to select 2 paths which are exported as gcode. The paths it self use the green (x and u) and blue (y and z) axis. Positioning along the red axis does not matter.
+Open the ruby code editor first and load and execute the foamcutter.rb. This adds 4 menus to the PlugIn menu. 
+- FoamCutter Settings: you can define some general settings, like inch/mm, used decimals.
+- FoamCutter Import how-file: Import profiles from Wing Helper
+- FoamCutter Tool: Generates gcode for 2 paths and exports it. The paths it self use the green (x and u) and blue (y and z) axis. Positioning along the red axis does not matter. See tutorial video "Working with SketchUp Part 1-3"
+- FoamCutter Tool PP: Generates gcode for the left and the right axis of the foamcutter, this includes a simple post processing. See tutorial video "Working with SketchUp Part 4"
 
 The algorithm searches all related points to an edge. It follows two routes
 ### 1: go up first (Y/Z +)
 ### 2: go back first (X/U -)
-It uses all edges only once. If you reach a dead end, you may use the third dimension do open up new paths/edges - please keep the rules in mind.
+It uses all edges only once. If you reach a dead end, you may use the third dimension (supporting path) do open up new paths/edges - please keep the rules in mind.
 
 Both paths should have the same number of points and edges. To go for that with more complex objects, it is a good way to use CurviLoft
 - create your objects
@@ -331,11 +334,11 @@ Both paths should have the same number of points and edges. To go for that with 
 - [Working with SketchUp Part 1](https://youtu.be/MZSXp2stBLk)
 - [Working with SketchUp Part 2](https://youtu.be/SIh3zpsxGX4)
 - [Working with SketchUp Part 3](https://youtu.be/uU0HhuviuLE)
+- [Working with SketchUp Part 4](https://youtu.be/WJ8nHyDqIhs)
 
 ![sketchup_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/sketchup_1.png)
 ![sketchup_2](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/sketchup_2.png)
 
-In addition you can import how files from WingHelper
 
 # Post processing
 Designing the shape of a wing or a fuselage requires in most times an additional step to tell the machine / foam cutter how to produce it. This step is called post processing. It allows you to generate machine executable or interpretable code (gcode) and add machine, tool and material specific information (hot wire temperature, travel speed, position of foam block, …). I wrote a pice of code, do adopt my SketchUp files and my WingHelper Designs to my foam cutter. The code is written in swift for macOS, but the basic ideas can be easily adopted to other languages. All post processing functions are bundled in the class FCalc (FCalc.swift). Interfacing is handled with key to access the values and the labels/descriptions to the values. The values itself are exchanged as Strings, because most of them are changed by user, so all type checking stuff is integrated in FCalc, too. Detailed interface description is available in FCalc.swift.
@@ -404,44 +407,9 @@ Designing the shape of a wing or a fuselage requires in most times an additional
 - [Part 2](https://youtu.be/POwDu0zc9eI)
 
 
-# Simple Shapes without using the post processor
-
-I was asked, if the hardware is working without the post processor or with other tools. The answer is yes. You can use tools like devFoam or jedicut to generate gcode and store it on the SD Card or even send it direktly over the USB interface.
-If you want to cut out simple shapes like letters, you can even work only inside SketchUp.
-![simple sample](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/simple_sample.png)
-Checkout the video [Simple Shape in SketchUp w/o using post processing](https://youtu.be/lMjuI5fZvUQ)
-
-If you want to add some gcode commands and headers to the SketchUp Foamcutter.rb exported file, follow this lines:
-- save the exported file with the extension .gcode (executable from SD Card)
-- open the file with a text editor
-- add the following lines at the beginning of the file, to setup the coordination system, use absolute coordinates, feed speed of 100 mm/min (F100), hotwire powersetting of 90% (S90), and switch the hotwire on.
-
-G17
-
-G21
-
-G94
-
-G90F100S90
-
-G4P1
-
-M3
-
-G4P5
-
-- replace the G90 with G1Fxxx, Fxxx is the feed speed, i.e. F100 for 100mm/min
-
-G90X0.0Y13.5U0.0Z13.5   >>>  G1F100X0.0Y13.5U0.0Z13.5
-
-- add at the very end the commands to switch of the hotwire
-
-G4P1
-
-M5
-
-
+# Samples
 See folder 99_sample in the code section:
+![simple_sample](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/simple_sample.png)
 - sample_1.gcode is the export file from foamcutter.rb (SketchUp) 
 - sample_2.gcode header and commandes were modified manually with text-editor
 - sample_pp.gcode is generated with post processor
