@@ -221,10 +221,10 @@ Many thanks to you, for writing and sharing this fantastic code.
 ### How to install:
 - Download the foamcutter firmware
 - Download the libraries
-  - directly from this github:
+  - directly from this github (recommended):
     download: https://github.com/ThomasHeb/4AxisFoamCutter/tree/master/03_Firmware/libraries
     store in your ../Arduino/libraries/ folder (prefered, because updates of the original libraries may cause problems with grbl)
-  - or from the original authors:   
+  - or from the original authors (not reccomended, updates of the lobrary may cause problems):   
     Download the U8G2 lib (GitHub or via the Arduino IDE)  
     Download the SdFat lib (GitHub or via the Arduino IDE)
     Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h and U8x8Lib.cpp from the code section
@@ -262,6 +262,7 @@ Please have a lock at the parameters (command $$ over Serial Monitor)
   - switch speed between feed and homing seek for fast traveling (selected homing seek speed is indicated by LED
 - SD-Card
   - read file list from SD-Card (only with defined file extensions (config.h), only from root directory, keep filenames short)
+  - valid gcode file extensions: .nc, .gcode (you may change the file extension to oneof these)
   - execute a file from the SD-Card
   - visualise the progress (bytes read and send to gcode processing, not bytes really executed)
 - Hotwire
