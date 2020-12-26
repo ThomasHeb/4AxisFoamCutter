@@ -29,9 +29,12 @@ For controlling the four axis I found a solutions based on grbl 8c2 in combinati
 - Arduino bases gcode handling, based on grbl 8c2 version adapted for foam cutting.
 - fixed frame based on 2020 profiles, v-slot based linear actors (it is my first cnc machine, so there are much easier and better mechanical constructions, have a lock on https://www.rckeith.co.uk)
 - only one power supply
-- wing design with WingHelper (I have a licence), export of gcode is possible but post process is required
-- fuselage design with SketchUp, therefore I wrote a small tool to generate gcode
-- post processing to adapt gcode to machine geometry
+- wing design with third party tools: 
+  - WingHelper (I have a licence), export of gcode is possible but post process is required, I use my own post processor in MacOS, see below.
+  - https://www.youtube.com/watch?v=uWO8kMGxqGU, Java based wing designer, including post processor. Exported dat file needs to be renamed to gcode-file extension. hotwire needs to be switched on manually.
+  - http://www.diyrcwings.com/app/, Online wing designer, including post processor and hotwire controller. Exported file extensio  needs to be changed to .gcode
+- fuselage design with SketchUp, therefore I wrote a small tool to generate gcode, see below
+- post processing to adapt gcode to machine geometry for MacOS and combine multible jobs, see below
 
 
 # Resources
