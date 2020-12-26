@@ -4,12 +4,11 @@
 - Added blockdiagrams for setup with Ramps 1.4 / Ramps 1.6
 - Added selection guide for hotwire and power supply
 - Fans are optional, if not connected, Pin 10 do not need to be cutted
-- Added chapter "Simple Shapes without using the post processor"
-- Simple postprocessor integrated in SketchUp tool Foamcutter.rb
+- Simple postprocessor integrated in SketchUp tool Foamcutter.rb 
 
 
 ## What is comming next?
-- ...
+- Please let me know, if you have ideas or need improvements
 
 
 
