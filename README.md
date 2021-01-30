@@ -7,7 +7,7 @@
 - Simple postprocessor integrated in SketchUp tool Foamcutter.rb 
 
 
-## What is comming next?
+## What is coming next?
 - Please let me know, if you have ideas or need improvements
 
 
@@ -26,7 +26,7 @@ The base idea ist very simple. Four independent linear axis with NEMA 17 stepper
 For controlling the four axis I found a solutions based on grbl 8c2 in combination with some Windows bases UIs and gcode sender. For generating the wing profiles I found some windows solutions or professional tools, but not free of charge, neither running on mac. For the fuselage I found only a professional tool. As I don't want a computer in my workshop, the gcode should be executed from a SD card, similar as my 3D printer does.  So I came to my project list:
 - 4 independent axis 
 - local display, SD card reader and control buttons
-- Arduino bases gcode handling, based on grbl 8c2 version adapted for foam cutting.
+- Arduino based gcode handling, based on grbl 8c2 version adapted for foam cutting.
 - fixed frame based on 2020 profiles, v-slot based linear actors (it is my first cnc machine, so there are much easier and better mechanical constructions, have a lock on https://www.rckeith.co.uk)
 - only one power supply
 - wing design with third party tools: 
