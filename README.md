@@ -1,5 +1,8 @@
 ## What is new?
 - Shared firmware with LaserCutter
+  - tool is synchronized with grbl line execution
+  - hotwire.cpp/.h is integrated in common tool.cpp/.h 
+  - checkout [LaserCutter/Firmware](https://github.com/ThomasHeb/2AxisLaserCutter/tree/main/03_Firmware) for more insides
 - Removed source for library modification, use provided libraries instead
 - Rotary knob improved (no library needed)
 - Libraries for Arduino can be downloaded directly from here (solving some issues with library updateds and conflicts with grbl)
