@@ -227,10 +227,8 @@ Please use defines in config.h to select the right funtionality.
 
 ### How to install:
 - Download the foamcutter firmware
-- Download the libraries
-  directly from this github (recommended):
-  download: https://github.com/ThomasHeb/4AxisFoamCutter/tree/master/03_Firmware/libraries
-  store in your ../Arduino/libraries/ folder (prefered, because updates of the original libraries may cause problems with grbl)
+- Download the libraries directly from this github (recommended):
+  /03_Firmware/libraries and store in your ../Arduino/libraries/ folder (prefered, because updates of the original libraries may cause problems with grbl)
 - Select Version FOAM_CUTTER in config.h
 
   ![compiler_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/compiler_1.png)
