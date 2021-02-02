@@ -232,6 +232,7 @@ Please use defines in config.h to select the right funtionality.
   download: https://github.com/ThomasHeb/4AxisFoamCutter/tree/master/03_Firmware/libraries
   store in your ../Arduino/libraries/ folder (prefered, because updates of the original libraries may cause problems with grbl)
 - Select Version FOAM_CUTTER in config.h
+
   ![compiler_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/compiler_1.png)
   
 ### Changes within the library U8G2 - only for information:
