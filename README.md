@@ -1,4 +1,6 @@
 ## What is new?
+- Shared firmware with LaserCutter
+- Removed source for library modification, use provided libraries instead
 - Rotary knob improved (no library needed)
 - Libraries for Arduino can be downloaded directly from here (solving some issues with library updateds and conflicts with grbl)
 - Added blockdiagrams for setup with Ramps 1.4 / Ramps 1.6
@@ -220,20 +222,20 @@ Links to the original
 - [SdFat by Bill Greiman, tested with version 1.2.3](https://github.com/greiman/SdFat)
 
 Many thanks to you, for writing and sharing this fantastic code.
+The firmware is a common project with [2 Axis Laser Cutter](https://github.com/ThomasHeb/2AxisLaserCutter).
+Please use defines in config.h to select the right funtionality.
 
 ### How to install:
 - Download the foamcutter firmware
 - Download the libraries
-  - directly from this github (recommended):
-    download: https://github.com/ThomasHeb/4AxisFoamCutter/tree/master/03_Firmware/libraries
-    store in your ../Arduino/libraries/ folder (prefered, because updates of the original libraries may cause problems with grbl)
-  - or from the original authors (not reccomended, updates of the lobrary may cause problems):   
-    Download the U8G2 lib (GitHub or via the Arduino IDE)  
-    Download the SdFat lib (GitHub or via the Arduino IDE)
-    Open ../Arduino/libraries/U8G2/src and replace U8x8lib.h and U8x8Lib.cpp from the code section
-
+  directly from this github (recommended):
+  download: https://github.com/ThomasHeb/4AxisFoamCutter/tree/master/03_Firmware/libraries
+  store in your ../Arduino/libraries/ folder (prefered, because updates of the original libraries may cause problems with grbl)
+- Select Version FOAM_CUTTER in config.h
+  ![compiler_1](https://github.com/ThomasHeb/4AxisFoamCutter/blob/master/img/compiler_1.png)
+  
 ### Changes within the library U8G2 - only for information:
-Grbl uses almost all resources of the Arduino to control the stepper within an accurate timing. So the standard approach of Arduino is not working any more, because some resources are not available anymore for the Arduino framework. Within the U8G2 I use a software driven SPI on pin D50 to D52 (I didn’t check, if hardware driven SPI would work, too). The only thing I needed to change, was the required delay within the SPI. Therefore I changed the delay function to the grbl supported delay function.
+Grbl uses almost all resources of the Arduino to control the stepper within an accurate timing. So the standard approach of Arduino is not working any more, because some resources are not available anymore for the Arduino framework. Within the U8G2 I use a software driven SPI on pin D50 to D52. The only thing I needed to change, was the required delay within the SPI. Therefore I changed the delay function to the grbl supported delay function.
 
 
 ### LCD, SD card and buttons, ….
