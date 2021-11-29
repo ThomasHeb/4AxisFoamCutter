@@ -465,10 +465,17 @@ uint8_t gc_execute_line(char *line)
         if (!axis_words) {
           FAIL(STATUS_INVALID_STATEMENT);
         }
-        else
-/// 8c1 :line
+        else {
+#ifdef LASER_CUTTER        
+          // in Laser Mode: Switch laser off during Seek
+          mc_line(target[X_AXIS], target[Y_AXIS], target[U_AXIS], target[Z_AXIS],
+                  settings.default_seek_rate, false, C_LINE, gc.tool_state, 0);
+#else
+          // in Foamcutter Mode: Hotwire stays on during seek
           mc_line(target[X_AXIS], target[Y_AXIS], target[U_AXIS], target[Z_AXIS],
                   settings.default_seek_rate, false, C_LINE, gc.tool_state, gc.tool_pwr);
+#endif
+        }
         break;
       case MOTION_MODE_LINEAR:
         // TODO: Inverse time requires F-word with each statement. Need to do a check. Also need
