@@ -78,7 +78,7 @@ Many thanks to all the guys giving me grad inspirations with their projects
 - Arduino Mega 2560
 - 128x64 LCD Display / SD card reader from RepRap with connector to Ramps 1.4 or 1.6
 - Ramps 1.4 or 1.6
-- 4x stepper driver A4988
+- 4x stepper driver A4988 (on E0, E1, Y, Z socket 0f ramps)
 - 8x micro switch NC as limit switch
 - 4x 100nF capacitor
 - 12 buttons NO
